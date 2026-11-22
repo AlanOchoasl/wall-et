@@ -15,12 +15,12 @@ La primera versión debe proporcionar una base funcional y clara sobre la cual i
 - Aplicación personal de escritorio.
 - Funcionamiento local.
 - Alcance inicial intermedio, priorizando las funciones esenciales.
-- Moneda de trabajo: pesos argentinos (ARS).
+- Monedas de trabajo: pesos argentinos (ARS) y dólares estadounidenses (USD), sin conversión entre ellas.
 - Tema claro y oscuro.
 - Gestión de servicios mensuales.
 - Gestión básica de inversiones en cauciones con datos ingresados manualmente.
 - Botón para abrir una terminal externa en el directorio del proyecto y ejecutar OpenCode.
-- Diseño preparado para poder ampliar el producto más adelante, sin implementar ahora conversión de monedas ni gestión histórica.
+- Diseño preparado para poder ampliar el producto más adelante, sin implementar ahora conversión de monedas ni gestión histórica. D-024 admite ARS y USD desde v1; la conversión sigue fuera de alcance.
 
 ## 3. Requisitos funcionales
 
@@ -31,19 +31,20 @@ La aplicación permitirá administrar gastos recurrentes mediante una tabla.
 #### Datos de un servicio
 
 - Nombre del servicio.
-- Costo total en ARS.
+- Costo total en ARS o USD, con selector explícito y valor predeterminado ARS.
+- Moneda del servicio (ARS o USD).
 - Cantidad de personas que comparten el gasto.
 - Mi parte (calculada).
 - Notas.
 - Estado (activo o congelado).
 
-Todos los servicios de la primera versión serán mensuales. No se incluye una columna de renovación anual.
+Todos los servicios de la primera versión serán mensuales. No se incluye una columna de renovación anual; la renovación anual queda registrada como funcionalidad futura.
 
 #### Reglas de cálculo
 
 - La cantidad de personas incluye al usuario.
 - La división es siempre en partes iguales.
-- Fórmula: `Mi parte = Costo total / Cantidad de personas`.
+- Fórmula: `Mi parte = Costo total / Cantidad de personas`, en la moneda del servicio.
 - La cantidad de personas debe ser un entero mayor o igual a 1.
 - `Mi parte` es un resultado calculado, no un campo editable.
 - Para modificar el resultado se cambian el costo total o la cantidad de personas; luego se recalcula automáticamente.
@@ -69,7 +70,7 @@ Mostrar por separado:
 1. **Costo total de servicios:** suma de los costos completos de los servicios activos.
 2. **Mi gasto:** suma de las partes correspondientes al usuario en los servicios activos.
 
-Todos los importes se expresan en ARS en esta versión.
+Los importes se expresan en ARS o USD; cada servicio conserva su moneda y los totales se calculan separadamente por moneda.
 
 ### RF-02 — Gestión de inversiones
 
@@ -80,6 +81,7 @@ Cada fila representa una inversión asociada a un mes.
 #### Datos de la tabla
 
 - Mes.
+- Moneda (ARS o USD, con selector explícito y valor predeterminado ARS).
 - Capital invertido.
 - TNA.
 - Plazo en días.
@@ -94,21 +96,22 @@ Cada fila representa una inversión asociada a un mes.
 - Los campos de entrada comienzan en cero.
 - El usuario ingresa manualmente el capital y los parámetros de la inversión, incluyendo TNA, plazo e impuestos.
 - No se precargan tasas, plazos ni porcentajes impositivos como valores reales.
+- La moneda se selecciona explícitamente; no se convierte automáticamente entre ARS y USD.
 - Los resultados calculados no se editan directamente: se modifican los datos de origen.
 
 #### Cálculo provisional
 
-La fórmula financiera definitiva, la convención de días y el tratamiento impositivo quedan fuera de esta etapa de definición. Para la primera visualización se podrá utilizar un cálculo o conjunto de datos de demostración provisional, identificado como tal y reemplazable cuando se definan las reglas reales.
+La fórmula financiera definitiva, la convención de días y el tratamiento impositivo quedan fuera de esta etapa de definición. El usuario aprobó PV-01 a PV-03 para una implementación provisional, identificada como tal y reemplazable; esas fórmulas no sustituyen a la ruta definitiva, que sigue pendiente de las decisiones correspondientes.
 
 Los resultados provisionales sirven para comprobar la interfaz y el flujo de datos; no deben presentarse como cálculos financieros exactos.
 
 #### Cobertura
 
-Comparar el rendimiento neto mostrado con los gastos del mes:
+Comparar el rendimiento neto mostrado con los gastos del mes. La comparación requiere que ambos importes estén en la misma moneda; no se convierten importes:
 - Si el rendimiento alcanza o supera los gastos: `¡Sí cubre!`.
 - Si no alcanza: `Déficit de: $[importe faltante]`.
 
-La cobertura de la primera versión es una visualización basada en el cálculo provisional. Debe quedar aislada para poder sustituirse por la fórmula definitiva.
+La cobertura de la primera versión se muestra con PV-03 mientras la ruta definitiva permanece pendiente. Debe quedar aislada para poder sustituirse por la fórmula definitiva.
 
 ### RF-03 — Relación entre servicios e inversiones
 
@@ -116,6 +119,7 @@ La cobertura de la primera versión es una visualización basada en el cálculo 
 - Los cambios en servicios activos actualizan los totales.
 - Los resultados de cobertura se actualizan cuando cambian los gastos o los datos de inversión.
 - En esta primera versión, `Gastos del mes` considera los servicios administrados por el módulo Servicios. La incorporación de otras categorías de gastos podrá evaluarse posteriormente.
+- La inversión y los gastos comparados deben compartir moneda; no se convierten importes.
 
 ### RF-04 — Apertura de OpenCode
 
@@ -148,7 +152,7 @@ La posibilidad de que OpenCode consulte o modifique servicios e inversiones medi
 
 ## 5. Fuera del alcance de la primera versión
 
-- Conversión de ARS a otras monedas y cotizaciones.
+- Conversión entre monedas y cotizaciones.
 - Historial de precios, tasas, inversiones y resultados por períodos.
 - Fórmula financiera definitiva de cauciones y parametrización fiscal completa.
 - Sincronización en la nube.
@@ -163,17 +167,18 @@ La posibilidad de que OpenCode consulte o modifique servicios e inversiones medi
 ## 6. Extensiones futuras contempladas
 
 Aunque no se implementan ahora, el diseño debe evitar bloquear:
-1. Conversión y visualización de importes en otras monedas.
-2. Historial de cambios para que actualizar un precio o parámetro no altere la información de períodos anteriores.
-3. Fórmula definitiva de rendimiento, impuestos y convención de días para cauciones.
-4. Operaciones controladas para que OpenCode consulte y modifique datos de la aplicación.
-5. Incorporación de otros tipos de gastos.
+1. Conversión entre ARS y USD, cotizaciones y visualización de monedas adicionales.
+2. Renovación anual y prorrateo de servicios anuales.
+3. Historial de cambios para que actualizar un precio o parámetro no altere la información de períodos anteriores.
+4. Fórmula definitiva de rendimiento, impuestos y convención de días para cauciones.
+5. Operaciones controladas para que OpenCode consulte y modifique datos de la aplicación.
+6. Incorporación de otros tipos de gastos.
 
 ## 7. Cuestiones para definir durante futuras iteraciones
 
 - Fórmula de rendimiento de cauciones, base anual y convención de días.
 - Regla de cálculo y aplicación de impuestos.
-- Precisión y redondeo de los resultados.
+- Precisión y redondeo de los resultados (D-028, pendiente): en fase 3 se conservan fracciones exactas en dominio, no se persisten resultados derivados redondeados y la presentación puede mostrar dos decimales solo como formato. Falta decidir cómo representar resultados fraccionarios y cómo resolver diferencias entre importes individuales mostrados y totales.
 - Política de confirmación y registro de modificaciones solicitadas por OpenCode.
 - Estrategia de copias de seguridad y recuperación de SQLite.
 - Alcance de una futura versión móvil.

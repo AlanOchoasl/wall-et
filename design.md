@@ -221,7 +221,7 @@ Las tablas son el componente central de ambos módulos.
 
 - Mostrar las cifras principales con tamaño y peso superiores al texto auxiliar.
 - Etiqueta descriptiva siempre visible.
-- Mantener los importes en ARS según el alcance actual.
+- Mostrar el código de moneda (ARS o USD) junto a los importes según el alcance actual; no introducir cotizaciones ni conversión.
 - Cuando se presenten dos totales relacionados, darles jerarquía equivalente y diferenciarlos con etiquetas claras.
 - No agregar KPIs, porcentajes de variación ni métricas que no estén contemplados en los requisitos.
 
@@ -265,7 +265,7 @@ Prioridad visual:
 
 La tabla debe representar los datos definidos en requisitos: servicio, costo total, personas que comparten, mi parte y notas. Las acciones de edición, congelación y eliminación pueden ubicarse en una columna compacta.
 
-No incluir renovación anual ni controles de reparto desigual. La parte personal es un valor calculado y debe distinguirse visualmente de los datos editables.
+No incluir renovación anual ni controles de reparto desigual. La parte personal es un valor calculado y debe distinguirse visualmente de los datos editables. El formulario incluye el selector explícito ARS/USD con ARS como valor predeterminado.
 
 ### 9.2 Inversiones
 
@@ -275,9 +275,9 @@ Prioridad visual:
 3. Campos de entrada y resultados calculados claramente diferenciados.
 4. Indicador de cobertura de gastos.
 
-La tabla debe representar los datos definidos en requisitos: mes, capital invertido, TNA, plazo en días, impuestos, rendimiento bruto, gastos del mes, rendimiento neto y resultado de cobertura.
+La tabla debe representar los datos definidos en requisitos: mes, moneda, capital invertido, TNA, plazo en días, impuestos, rendimiento bruto, gastos del mes, rendimiento neto y resultado de cobertura.
 
-Los datos ingresados manualmente deben distinguirse de los resultados calculados. La apariencia no debe sugerir que los resultados provisionales son definitivos.
+El formulario incluye el selector explícito ARS/USD con ARS como valor predeterminado. Los datos ingresados manualmente deben distinguirse de los resultados calculados. La apariencia no debe sugerir que los resultados provisionales son definitivos.
 
 No agregar gráficos históricos, proyecciones, cotizaciones ni métricas de inversión no definidas.
 

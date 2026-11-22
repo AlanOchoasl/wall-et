@@ -5,9 +5,9 @@ Ver `proposal.md` para la motivación y las contradicciones detectadas. El repos
 Restricciones que condicionan el diseño:
 
 - Stack aprobado (D-021): Tauri 2, React, TypeScript, Vite, Rust y SQLite.
-- Primera versión en ARS, con servicios mensuales únicamente.
-- Varias reglas financieras están pendientes de aprobación: fórmula definitiva de rendimiento, convención de días, tratamiento impositivo, precisión y redondeo.
-- Se permite un cálculo provisional de demostración (D-017), siempre identificado como no definitivo, aislado y reemplazable. Su fórmula todavía no está definida.
+- Primera versión en ARS y USD, sin conversión, con servicios mensuales únicamente (D-024, D-025, D-027).
+- Varias reglas financieras están pendientes de aprobación: fórmula definitiva de rendimiento, convención de días, tratamiento impositivo definitivo y redondeo (D-028).
+- El cálculo provisional de demostración (D-017, PV-01 a PV-03) está aprobado, siempre identificado como no definitivo, aislado y reemplazable; la ruta definitiva permanece no disponible.
 - La identidad visual está definida en `design.md`: acento púrpura, glassmorphism moderado, tipografía Inter, tokens de color para tema claro y oscuro.
 - La integración con OpenCode se limita a abrir una terminal externa (D-019, D-020).
 
@@ -23,7 +23,7 @@ Restricciones que condicionan el diseño:
 
 **Non-Goals:**
 
-- Conversión multidivisa, servicios anuales, historial de cambios, backups automáticos, reportes, gráficos, buscadores y notificaciones.
+- Conversión entre monedas, servicios anuales, historial de cambios, backups automáticos, reportes, gráficos, buscadores y notificaciones.
 - Acceso de OpenCode a los datos o escritura directa sobre SQLite.
 - Chat de IA integrado.
 - Definir la identidad visual o los tokens de diseño definitivos.
@@ -92,8 +92,8 @@ Modelo de datos propuesto:
 service
   id TEXT PK
   name TEXT NOT NULL
-  total_cost_minor INTEGER NOT NULL        -- centavos de ARS
-  currency_code TEXT NOT NULL              -- "ARS"
+  total_cost_minor INTEGER NOT NULL        -- unidades mínimas de la moneda (ARS/USD: centavos)
+  currency_code TEXT NOT NULL              -- "ARS" | "USD"
   shared_people_count INTEGER NOT NULL
   notes TEXT
   status TEXT NOT NULL                     -- active | frozen
@@ -104,8 +104,8 @@ investment
   id TEXT PK
   month TEXT NOT NULL                      -- YYYY-MM
   capital_minor INTEGER NOT NULL
-  currency_code TEXT NOT NULL              -- "ARS"
-  tna_basis_points INTEGER NOT NULL        -- escala a definir con la decisión de precisión
+  currency_code TEXT NOT NULL              -- "ARS" | "USD"
+  tna_basis_points INTEGER NOT NULL        -- 1 bp = 0,01 pp (D-023)
   term_days INTEGER NOT NULL
   tax_minor INTEGER NOT NULL               -- impuesto ingresado manualmente
   created_at TEXT NOT NULL
@@ -124,31 +124,32 @@ schema_migrations
 Notas:
 
 - `my_share`, totales, gastos del mes, rendimientos y cobertura no se persisten: se derivan.
-- La columna `tna_basis_points` representa la TNA como entero escalado; la escala exacta se fija junto con la decisión de precisión. No se usa punto flotante.
+- La columna `tna_basis_points` representa la TNA como entero escalado; la escala exacta quedó definida en D-023: 1 bp = 0,01 pp (25,50 % = 2550 bp). La conversión desde texto decimal se hace en dominio, sin punto flotante.
 - `tax_minor` almacena el importe ingresado; su interpretación definitiva (importe absoluto o base para una alícuota) queda bloqueada hasta la decisión impositiva. Si la decisión exige una alícuota, se agregará una migración.
 - No se incorpora tabla de historial ni de auditoría en la primera versión.
 - La unicidad de una inversión por mes no se impone como restricción de esquema mientras no se decida; el caso de uso esperado es una inversión por mes.
-- Se conserva `currency_code` fijo en `"ARS"` aunque el modelo de `docs/arquitectura.md` §5 use `total_cost_ars` sin campo de moneda. Es una decisión técnica habilitada por §6 para evitar una migración cuando se incorpore la extensión futura de monedas; no habilita conversión en esta versión.
+- `currency_code` admite `"ARS"` o `"USD"` y se persiste en cada servicio e inversión (D-024, D-027). El esquema ya contiene la columna, por lo que no se requiere una nueva migración. No se realizan conversiones ni se suman o comparan importes de monedas distintas.
 
 ### D6. Importes monetarios
 
-- Importes en enteros de unidades mínimas (centavos) para ARS.
-- La parte del usuario y otros cocientes se calculan con un tipo decimal o racional de precisión explícita, nunca con `f32`/`f64`.
-- El resultado exacto se conserva para cálculo; el redondeo de presentación o de asentamiento se aplica solo con la política aprobada.
-- Mientras la política de redondeo no esté aprobada, la interfaz muestra el resultado con la indicación de que no es definitivo (ver `financial-calculations`).
+- Importes en enteros de unidades mínimas; ARS y USD usan centavos y la abstracción permite incorporar monedas con otro exponente.
+- Cada importe lleva su moneda; las operaciones exigen monedas compatibles y los totales se agrupan por moneda.
+- Precisión interna: la parte del usuario y otros cocientes se calculan con un tipo racional de precisión explícita, nunca con `f32`/`f64`, y se conservan como fracción exacta en dominio durante la fase 3.
+- Persistencia: no se almacenan importes derivados redondeados.
+- Presentación: la interfaz puede mostrar dos decimales solo como formato; esto no fija una política de redondeo (D-028, pendiente). Falta decidir cómo representar resultados fraccionarios y cómo resolver diferencias entre importes individuales mostrados y totales. Mientras tanto, los resultados se etiquetan según su estado y no se presentan como definitivos (ver `financial-calculations`).
 
 ### D7. Punto único para las decisiones financieras pendientes
 
 El dominio define un módulo de cálculos con funciones explícitas para rendimiento bruto, rendimiento neto y cobertura. Cada una devuelve un resultado con estado (`disponible`, `no_disponible`, `provisional`) y motivo.
 
-Mientras falte la decisión definitiva, devuelve `no_disponible`. Un cálculo provisional solo se habilita si el usuario aprueba su fórmula; se implementa en un módulo separado, se etiqueta como provisional y se reemplaza por el definitivo sin tocar la presentación ni la persistencia.
+La ruta definitiva devuelve `no_disponible` mientras falte la decisión definitiva. La ruta provisional implementa PV-01 a PV-03 en `domain/calculations/provisional`, separada de `domain/calculations/definitive`, y etiqueta todo resultado como `provisional`. No se introducen reglas financieras nuevas ni se presenta un valor provisional como definitivo.
 
 Esto permite habilitar el cálculo definitivo cambiando un único módulo y sus pruebas, sin tocar la interfaz ni la persistencia.
 
 ### D8. Validaciones en dos niveles
 
 - Borde (comandos Tauri): tipos, campos obligatorios, formato y rangos básicos.
-- Dominio: reglas de negocio (cantidad de personas entera y mayor o igual a 1, importes no negativos, moneda admitida, estado válido).
+- Dominio: reglas de negocio (cantidad de personas entera y mayor o igual a 1, importes no negativos, moneda admitida ARS/USD, compatibilidad entre monedas, estado válido).
 
 Ambos niveles usan las mismas definiciones del dominio para evitar divergencias. Los mensajes de error se devuelven con el campo afectado.
 
@@ -184,21 +185,29 @@ Ambos niveles usan las mismas definiciones del dominio para evitar divergencias.
 
 ### D13. Cálculo provisional de demostración (PV-01 a PV-03)
 
-Aprobado por el usuario para desbloquear la visualización de la primera versión. Se registra en `docs/decisiones.md` como comportamiento provisional, no como regla financiera confirmada.
+Aprobado por el usuario para una implementación provisional que desbloquea la visualización de la primera versión. Se registra en `docs/decisiones.md` como comportamiento provisional, no como regla financiera confirmada; la ruta definitiva sigue pendiente de las decisiones correspondientes.
 
 - `rendimiento_bruto = capital × (TNA / 100) × (plazo_días / 365)` — interés simple, base 365, sin capitalización.
 - `rendimiento_neto = rendimiento_bruto − impuestos` — impuestos como importe absoluto ingresado manualmente.
 - `cobertura` compara `rendimiento_neto` con `gastos_del_mes`.
 - Todo resultado se etiqueta "provisional" en la interfaz y en los DTOs (`estado = provisional`).
 - Se implementa en un módulo `domain/calculations/provisional` separado de `domain/calculations/definitive`, con una interfaz común, para reemplazarlo sin tocar presentación ni persistencia.
-- Los cálculos usan aritmética decimal/racional; la presentación usa dos decimales. La política definitiva de redondeo sigue pendiente.
+- Precisión interna: aritmética decimal/racional con fracción exacta. Persistencia: no se guardan resultados derivados redondeados. Presentación: puede mostrar dos decimales solo como formato, sin fijar una política de redondeo (D-028, pendiente).
 - Al aprobarse la fórmula definitiva, el módulo provisional se retira y las pruebas de referencia se mueven al definitivo.
+
+### D14. Monedas, precisión y alcance aprobado (D-023 a D-027)
+
+- ARS y USD están disponibles desde v1 con selector explícito y valor predeterminado ARS; no hay conversión ni cotizaciones.
+- Cada servicio e inversión persiste su `currency_code`; los totales se calculan por moneda y las comparaciones exigen monedas compatibles.
+- La TNA se representa en basis points (1 bp = 0,01 pp); la conversión desde texto decimal se realiza en dominio sin punto flotante.
+- La primera versión administra solo renovación mensual; la renovación anual y el prorrateo quedan como funcionalidad futura (D-025).
+- `Mi parte` conserva la fracción exacta en dominio y no se persiste redondeada; la presentación puede mostrar dos decimales solo como formato. D-028 sigue pendiente: falta decidir cómo representar resultados fraccionarios y cómo resolver diferencias entre importes individuales mostrados y totales.
 
 ## Risks / Trade-offs
 
 - **Decisiones financieras pendientes** → el rendimiento y la cobertura definitivos quedan sin veredicto real. Mitigación: módulo único con estado `no_disponible`, cálculo provisional aislado y etiquetado, tareas bloqueadas separadas y pruebas que impidan presentar resultados inventados.
 - **Fórmula provisional no aprobada** → ya resuelto: PV-01 a PV-03 están aprobados como demostración. Riesgo restante: que un resultado provisional se confunda con uno definitivo. Mitigación: etiqueta textual obligatoria y estado `provisional` en los DTOs.
-- **Precisión de TNA sin definir** → la escala de `tna_basis_points` puede requerir migración. Mitigación: definir la escala junto con la decisión de precisión antes de implementar el cálculo.
+- **Precisión de TNA** → resuelta por D-023: escala fija de 1 bp = 0,01 pp en `tna_basis_points`, con conversión desde texto decimal en dominio. Riesgo restante: una futura necesidad de mayor resolución exigiría una migración y un cambio de tipo aislado.
 - **Impuestos con semántica abierta** → el campo manual puede necesitar cambiar de importe a alícuota. Mitigación: aislar la conversión en el dominio y prever una migración.
 - **Glassmorphism y legibilidad** → el blur puede reducir contraste o rendimiento. Mitigación: fallback sólido, contraste mínimo 4.5:1 y verificación en ambos temas.
 - **Congelamiento indefinido** → no cubre congelamientos por período si esa decisión cambia. Mitigación: modelo de estado simple y migración futura si se aprueban períodos.
