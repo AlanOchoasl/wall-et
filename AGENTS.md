@@ -9,13 +9,26 @@ El alcance inicial trabaja exclusivamente en pesos argentinos (ARS). La conversi
 ## Antes de trabajar
 
 1. Leer `docs/requisitos.md`, `docs/arquitectura.md` y `docs/decisiones.md`.
-2. Distinguir entre:
+2. Leer `design.md` antes de crear o modificar la interfaz.
+3. Usar `design.md` exclusivamente como guía de identidad visual, composición, jerarquía y apariencia de componentes.
+4. Distinguir entre:
    - decisiones confirmadas;
    - comportamientos provisionales o de demostración;
    - extensiones futuras;
    - cuestiones todavía pendientes.
-3. Si una tarea depende de una decisión pendiente, preguntar antes de asumirla.
-4. Respetar el alcance de la primera versión. No adelantar funcionalidades futuras sin autorización.
+5. Si una tarea depende de una decisión pendiente, preguntar antes de asumirla.
+6. Respetar el alcance de la primera versión. No adelantar funcionalidades futuras sin autorización.
+
+## Jerarquía de documentación
+
+- `docs/requisitos.md` define qué debe hacer la aplicación.
+- `docs/decisiones.md` registra las decisiones confirmadas y los límites acordados.
+- `docs/arquitectura.md` define la estructura técnica y las responsabilidades.
+- `design.md` define únicamente cómo debe verse la interfaz.
+
+**Regla fundamental:** el diseño no modifica los requisitos funcionales. La presencia de un botón, campo, gráfico, buscador, tarjeta o cualquier otro elemento en una referencia visual no autoriza a implementar su funcionalidad. Si un elemento visual sugiere una función que no está definida en los requisitos o decisiones, no implementarla ni inferir su comportamiento. Consultar al usuario si resulta necesario.
+
+En caso de contradicción, los requisitos y las decisiones confirmadas prevalecen sobre cualquier referencia visual.
 
 ## Stack aprobado
 
@@ -50,6 +63,15 @@ El alcance inicial trabaja exclusivamente en pesos argentinos (ARS). La conversi
 - No introducir servicios remotos, sincronización en la nube ni dependencias innecesarias.
 - Mantener el diseño extensible para incorporar conversión de monedas e historial en el futuro, sin implementar esas funciones ahora.
 
+## Interfaz y diseño visual
+
+- Antes de implementar componentes visuales, consultar `design.md`.
+- Mantener los temas claro y oscuro.
+- Respetar los patrones de tablas, formularios, jerarquía tipográfica, colores y espaciado definidos allí.
+- Adaptar la guía visual a los requisitos funcionales existentes; nunca adaptar los requisitos para que coincidan con una referencia.
+- No implementar elementos decorativos como controles funcionales si su comportamiento no está definido.
+- No agregar pantallas, secciones, acciones o datos por inferencia visual.
+
 ## OpenCode
 
 - La primera integración prevista es un botón que abre una terminal externa en el directorio del proyecto. El usuario ejecutará `opencode` manualmente en esa terminal.
@@ -66,6 +88,7 @@ Cuando el usuario confirme una decisión:
 2. Actualizar `docs/requisitos.md` o `docs/arquitectura.md` si corresponde.
 3. Mantener consistentes todos los documentos.
 4. No presentar propuestas del agente ni cálculos provisionales como decisiones confirmadas.
+5. Si el cambio afecta la apariencia, actualizar también `design.md`, sin convertirlo en una fuente de requisitos funcionales.
 
 ## Estado del proyecto
 
