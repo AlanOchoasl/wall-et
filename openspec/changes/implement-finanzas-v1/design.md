@@ -182,10 +182,22 @@ Ambos niveles usan las mismas definiciones del dominio para evitar divergencias.
 - Los resultados provisionales se identifican con etiqueta textual, además del tratamiento visual.
 - `design.md` es guía de apariencia; no agrega controles ni funcionalidades.
 
+### D13. Cálculo provisional de demostración (PV-01 a PV-03)
+
+Aprobado por el usuario para desbloquear la visualización de la primera versión. Se registra en `docs/decisiones.md` como comportamiento provisional, no como regla financiera confirmada.
+
+- `rendimiento_bruto = capital × (TNA / 100) × (plazo_días / 365)` — interés simple, base 365, sin capitalización.
+- `rendimiento_neto = rendimiento_bruto − impuestos` — impuestos como importe absoluto ingresado manualmente.
+- `cobertura` compara `rendimiento_neto` con `gastos_del_mes`.
+- Todo resultado se etiqueta "provisional" en la interfaz y en los DTOs (`estado = provisional`).
+- Se implementa en un módulo `domain/calculations/provisional` separado de `domain/calculations/definitive`, con una interfaz común, para reemplazarlo sin tocar presentación ni persistencia.
+- Los cálculos usan aritmética decimal/racional; la presentación usa dos decimales. La política definitiva de redondeo sigue pendiente.
+- Al aprobarse la fórmula definitiva, el módulo provisional se retira y las pruebas de referencia se mueven al definitivo.
+
 ## Risks / Trade-offs
 
 - **Decisiones financieras pendientes** → el rendimiento y la cobertura definitivos quedan sin veredicto real. Mitigación: módulo único con estado `no_disponible`, cálculo provisional aislado y etiquetado, tareas bloqueadas separadas y pruebas que impidan presentar resultados inventados.
-- **Fórmula provisional no aprobada** → la tabla de inversiones puede quedar sin cifras de rendimiento. Mitigación: la tarea 11.1 debe resolverse antes de la demostración; el sistema muestra `no_disponible` mientras tanto.
+- **Fórmula provisional no aprobada** → ya resuelto: PV-01 a PV-03 están aprobados como demostración. Riesgo restante: que un resultado provisional se confunda con uno definitivo. Mitigación: etiqueta textual obligatoria y estado `provisional` en los DTOs.
 - **Precisión de TNA sin definir** → la escala de `tna_basis_points` puede requerir migración. Mitigación: definir la escala junto con la decisión de precisión antes de implementar el cálculo.
 - **Impuestos con semántica abierta** → el campo manual puede necesitar cambiar de importe a alícuota. Mitigación: aislar la conversión en el dominio y prever una migración.
 - **Glassmorphism y legibilidad** → el blur puede reducir contraste o rendimiento. Mitigación: fallback sólido, contraste mínimo 4.5:1 y verificación en ambos temas.
@@ -195,6 +207,6 @@ Ambos niveles usan las mismas definiciones del dominio para evitar divergencias.
 
 ## Open Questions
 
-- Fórmula o datos exactos del cálculo provisional de demostración. Bloquea las tareas 11.1 y 11.2; no cambia la estructura del diseño.
+- Fórmula definitiva de rendimiento, convención de días y tratamiento impositivo. No bloquea el cálculo provisional; sí bloquea las tareas 11.2 y siguientes.
 - Directorio exacto que debe usarse como "directorio del proyecto" en una instalación empaquetada. Se asume el directorio desde el que se ejecuta la aplicación, configurable en un único punto.
 - Terminal concreta a abrir en Windows (por ejemplo, `cmd` o Windows Terminal). Se aísla en un módulo; no altera especificaciones ni tareas.

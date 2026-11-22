@@ -40,6 +40,18 @@ Los siguientes temas están deliberadamente fuera de la primera versión, no son
 5. Incorporación de otras categorías de gastos.
 6. Versión móvil.
 
+## Comportamientos provisionales de demostración
+
+Los siguientes comportamientos permiten probar la interfaz y el flujo de datos de la primera versión. **No son reglas financieras confirmadas ni asesoramiento financiero**; deben estar aislados, identificados como provisionales y poder reemplazarse por la fórmula definitiva.
+
+| ID | Tema | Comportamiento | Estado |
+|---|---|---|---|
+| PV-01 | Rendimiento bruto provisional | Interés simple: `rendimiento bruto = capital × (TNA / 100) × (plazo en días / 365)`. Base anual de 365 días, sin capitalización. La presentación usa dos decimales; la política definitiva de redondeo sigue pendiente. | Provisional / demostración |
+| PV-02 | Impuestos provisionales | El importe de impuestos ingresado manualmente se resta del rendimiento bruto: `rendimiento neto = rendimiento bruto − impuestos`. | Provisional / demostración |
+| PV-03 | Cobertura provisional | La cobertura compara el rendimiento neto provisional con los gastos del mes y se identifica visualmente como provisional. | Provisional / demostración |
+
+Estos comportamientos no modifican las cuestiones pendientes sobre fórmula definitiva, convención de días, tratamiento impositivo y redondeo.
+
 ## Cuestiones por definir durante futuras iteraciones
 
 - Fórmula de rendimiento de cauciones, base anual y convención de días.

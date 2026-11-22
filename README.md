@@ -42,6 +42,70 @@ La primera versión prioriza una base clara y extensible antes que cubrir todas 
 - [`docs/requisitos.md`](docs/requisitos.md): alcance y comportamiento esperado.
 - [`docs/arquitectura.md`](docs/arquitectura.md): arquitectura y stack aprobados.
 - [`docs/decisiones.md`](docs/decisiones.md): decisiones confirmadas, límites y cuestiones pendientes.
+- [`design.md`](design.md): guía exclusivamente visual.
+- [`openspec/`](openspec/): planificación y tareas de la primera versión.
+
+## Desarrollo
+
+### Requisitos del entorno
+
+- Node.js 20 o superior y npm.
+- Rust estable con el toolchain MSVC (`rustup`).
+- Visual Studio Build Tools con las herramientas de C++.
+- WebView2 (incluido en Windows 10/11 actualizado).
+- CLI de Tauri instalada como dependencia del proyecto (`@tauri-apps/cli`).
+
+Versiones verificadas en el entorno de desarrollo:
+
+| Herramienta | Versión |
+|---|---|
+| Node.js | 24.18.0 |
+| npm | 11.16.0 |
+| rustc / cargo | 1.100.0 |
+| Tauri CLI | 2.12.6 |
+| WebView2 | 158.0.4370.33 |
+| Visual Studio Build Tools 2022 | 17.14.45 |
+
+### Instalación
+
+```powershell
+npm install
+```
+
+### Comandos
+
+| Comando | Descripción |
+|---|---|
+| `npm run dev` | Servidor de desarrollo de la interfaz en `http://localhost:1420` |
+| `npm run desktop:dev` | Abre la aplicación de escritorio Tauri en modo desarrollo |
+| `npm run desktop:build` | Genera el build de escritorio |
+| `npm run build` | Verifica tipos y genera el build de la interfaz |
+| `npm run typecheck` | Verificación de tipos de TypeScript |
+| `npm run lint` | ESLint |
+| `npm test` | Pruebas de la interfaz con Vitest |
+| `npm run rust:fmt` | Aplica rustfmt |
+| `npm run rust:fmt:check` | Verifica el formato de Rust |
+| `npm run rust:lint` | Clippy con advertencias como errores |
+| `npm run rust:test` | Pruebas de Rust |
+| `npm run check` | Ejecuta todas las verificaciones anteriores |
+
+### Estructura
+
+```text
+src/                  Interfaz React + TypeScript
+├── app/              Shell y navegación
+├── features/         Módulos servicios, inversiones y preferencias
+├── shared/           Cliente de comandos y utilidades de presentación
+└── test/             Configuración de pruebas
+src-tauri/            Aplicación Tauri y backend Rust
+└── src/
+    ├── domain/       Entidades, validaciones y reglas de negocio
+    ├── application/  Casos de uso
+    ├── infrastructure/ Persistencia y procesos externos
+    └── commands/     Comandos Tauri
+```
+
+La base de datos SQLite se ubicará en el directorio de datos de la aplicación, no en el repositorio.
 
 ## Criterio de desarrollo
 
