@@ -1,148 +1,152 @@
 # Arquitectura inicial — App de Finanzas
 
-**Versión:** 0.1  
-**Estado:** Propuesta técnica, pendiente de aprobación.
+**Versión:** 0.2  
+**Estado:** Stack y dirección arquitectónica aprobados para la primera versión.
 
 ## 1. Objetivos arquitectónicos
 
 - Aplicación de escritorio local.
-- Arquitectura simple para un proyecto personal de alcance intermedio.
-- Separación clara entre interfaz, reglas financieras y persistencia.
-- Reglas de negocio compartidas por la interfaz y las integraciones.
-- Posibilidad de ampliar módulos y evaluar una futura versión móvil.
+- Base simple para un proyecto personal de alcance intermedio.
+- Separación clara entre interfaz, casos de uso, reglas de dominio y persistencia.
+- Cálculos centralizados y reutilizables.
+- Posibilidad de ampliar la aplicación gradualmente.
+- Mantener abierta la evolución futura hacia historial, conversión de monedas e integración avanzada con OpenCode, sin implementar esas funciones ahora.
 
-## 2. Stack tecnológico propuesto
+## 2. Stack tecnológico aprobado
 
-| Capa | Tecnología propuesta | Función |
+| Capa | Tecnología | Función |
 |---|---|---|
 | Contenedor de escritorio | Tauri 2 | Empaquetar y ejecutar la aplicación |
 | Interfaz | React | Componentes y pantallas |
 | Lenguaje de interfaz | TypeScript | Tipado estático |
-| Desarrollo frontend | Vite | Servidor y build de frontend |
+| Desarrollo frontend | Vite | Servidor de desarrollo y build |
 | Backend local | Rust | Casos de uso, validaciones y dominio |
 | Base de datos | SQLite | Persistencia local |
 
-**Importante:** este stack es una recomendación técnica, no una decisión confirmada todavía. Debe revisarse antes de iniciar el desarrollo.
+Este stack está confirmado por el usuario y debe utilizarse como base de implementación.
 
 ## 3. Arquitectura lógica
 
 ### Presentación
+
 Responsable de:
 - Navegación.
-- Tablas de servicios e inversiones.
-- Formularios de alta y edición.
+- Tabla y formularios de servicios.
+- Tabla y formularios de inversiones.
 - Totales e indicadores.
 - Preferencias visuales y tema.
+- Acción para abrir una terminal externa en el directorio del proyecto.
 
 La presentación no debe contener fórmulas financieras ni reglas de negocio críticas.
 
 ### Aplicación
+
 Coordina los casos de uso:
 - Crear, editar, eliminar, congelar y reactivar servicios.
-- Consultar totales por moneda.
+- Consultar totales de servicios.
 - Crear y modificar inversiones.
-- Consultar resultados de rendimiento y cobertura.
-- Ejecutar operaciones solicitadas por integraciones.
+- Consultar resultados provisionales de rendimiento y cobertura.
+- Abrir una terminal externa desde la aplicación.
 
 ### Dominio
+
 Contiene entidades, validaciones y reglas financieras:
 - División igualitaria de servicios.
-- Cálculo de rendimiento bruto.
-- Cálculo de rendimiento neto.
+- Cálculo provisional de rendimiento, aislado para poder reemplazarlo.
 - Comparación de cobertura.
-- Reglas de moneda y redondeo una vez definidas.
+- Validación de importes y cantidades.
 
-Los cálculos deben tener una única implementación autoritativa.
+La fórmula definitiva de cauciones todavía no está definida. Los cálculos provisionales deben estar claramente separados de las reglas definitivas y no deben filtrarse a la interfaz como si fueran valores financieros oficiales.
 
 ### Persistencia
+
 Responsable de:
-- Guardar y recuperar entidades.
-- Gestionar migraciones del esquema.
+- Guardar y recuperar servicios e inversiones.
+- Gestionar migraciones del esquema SQLite.
 - Mantener integridad y consistencia de los datos.
 
-### Integraciones
-Expone operaciones controladas para herramientas como OpenCode. No debe permitir acceso directo e irrestricto a SQLite.
+### Integraciones y procesos externos
+
+La primera versión solo necesita poder abrir una terminal externa en el directorio del proyecto para que el usuario ejecute OpenCode manualmente.
+
+No se requiere todavía un adaptador que permita a OpenCode consultar o modificar los datos financieros de la aplicación.
 
 ## 4. Flujo de operaciones
 
 **Interfaz:** React → comandos/casos de uso locales → dominio → repositorios → SQLite.
 
-**OpenCode:** CLI/adaptador local → operaciones permitidas de la aplicación → dominio → repositorios → SQLite.
+**Apertura de OpenCode:** interfaz Tauri → apertura de terminal externa en el directorio del proyecto → el usuario ejecuta `opencode`.
 
-Ambos caminos deben utilizar las mismas validaciones y reglas de negocio.
+Abrir OpenCode desde la carpeta del proyecto le permite trabajar sobre los archivos del repositorio según los permisos y herramientas que tenga configurados. Esto no equivale a una API de la aplicación ni le otorga automáticamente acceso estructurado a la base de datos en uso.
+
+Si en una etapa futura se habilitan operaciones sobre datos financieros, deberán exponerse mediante una interfaz local controlada que reutilice los casos de uso y validaciones de la aplicación.
 
 ## 5. Modelo de datos conceptual
 
 ### Service
+
 - `id`
 - `name`
-- `total_cost`
-- `currency_code`
+- `total_cost_ars`
 - `shared_people_count`
 - `notes`
 - `status` (active/frozen)
 - `created_at`
 - `updated_at`
 
-`my_share` se calcula a partir de `total_cost / shared_people_count`; no debe persistirse como un valor editable independiente salvo que una necesidad histórica justifique almacenar una instantánea.
+`my_share` se calcula a partir de `total_cost_ars / shared_people_count`; no es un valor editable independiente.
+
+La congelación es indefinida hasta que el usuario reactive el servicio. Los datos del servicio congelado se conservan.
 
 ### Investment
+
 - `id`
 - `month`
-- `capital`
-- `currency_code`
+- `capital_ars`
 - `tna`
 - `term_days`
+- `taxes`
 - `created_at`
 - `updated_at`
 
-Los rendimientos, impuestos y cobertura se calculan a partir de los datos de origen y las reglas vigentes. La estrategia de instantáneas históricas queda pendiente.
+Los campos de entrada comienzan en cero. Los resultados de rendimiento y cobertura se calculan y no se editan directamente.
+
+La fórmula financiera definitiva no forma parte de esta versión. El cálculo provisional debe poder reemplazarse sin modificar la estructura de presentación ni duplicar lógica.
 
 ### AppSettings
-Preferencias de la aplicación, por ejemplo tema visual y configuración general.
 
-### ChangeLog
-Registro de operaciones relevantes:
-- Identificador.
-- Tipo e identificador de entidad afectada.
-- Operación.
-- Valores anteriores y nuevos (con cuidado de no registrar secretos).
-- Origen de la operación (interfaz o integración).
-- Fecha y hora.
+Preferencias de la aplicación, por ejemplo:
+- Tema visual (claro/oscuro).
+- Configuración general de interfaz.
 
-El nivel de detalle y retención del historial deberá definirse.
+### Historial y auditoría
+
+No se implementa un historial financiero en la primera versión. Se debe evitar una estructura que impida incorporarlo posteriormente, por ejemplo mediante registros por período o instantáneas cuando esa necesidad se defina.
+
+No es necesario construir ahora un sistema completo de auditoría o ChangeLog salvo que una necesidad concreta de la primera versión lo justifique.
 
 ## 6. Consideraciones de datos y dinero
 
+- Todos los importes de la primera versión se interpretan como pesos argentinos (ARS).
+- No almacenar ni convertir otras monedas en esta etapa.
+- Mantener el diseño suficientemente desacoplado para incorporar códigos de moneda y conversiones en el futuro.
 - Utilizar tipos numéricos adecuados para importes monetarios; evitar cálculos financieros con punto flotante binario sin una estrategia explícita de precisión.
-- Guardar el código de moneda junto con cada importe.
-- No sumar importes de monedas diferentes sin una cotización y política de conversión definida.
-- Definir redondeo y precisión antes de implementar los cálculos.
+- Definir y aplicar validaciones de datos en el backend.
 - Usar migraciones versionadas para cambios en el esquema.
 
-## 7. Integración con OpenCode
+## 7. Apertura de terminal y OpenCode
 
-La integración debería exponer un conjunto acotado de operaciones de lectura y escritura, por ejemplo:
-- `list_services`
-- `create_service`
-- `update_service`
-- `freeze_service`
-- `reactivate_service`
-- `list_investments`
-- `create_investment`
-- `update_investment`
-- `get_monthly_summary`
+La primera versión debe ofrecer una acción visible para abrir una terminal externa en la carpeta del proyecto.
 
-Los nombres son ilustrativos, no una API aprobada.
+Requisitos de comportamiento:
+- Abrir la terminal del sistema operativo.
+- Establecer como directorio de trabajo la carpeta raíz del repositorio/proyecto.
+- No ejecutar automáticamente instrucciones de OpenCode; el usuario escribirá `opencode`.
+- Manejar de forma clara los casos en que no pueda abrirse una terminal.
 
-Las operaciones de escritura deben:
-- Validar datos.
-- Respetar reglas del dominio.
-- Informar claramente qué se modificará.
-- Solicitar confirmación según la política que se defina.
-- Registrar el origen del cambio.
+La implementación concreta deberá respetar las capacidades y permisos de Tauri 2 y funcionar en el sistema operativo objetivo del usuario.
 
-El mecanismo concreto (CLI, protocolo local u otro adaptador) se elegirá al implementar la integración.
+La futura integración de OpenCode con los datos de la aplicación queda fuera del alcance actual.
 
 ## 8. Estructura de carpetas sugerida
 
@@ -154,18 +158,18 @@ app-finanzas/
 │   ├── requisitos.md
 │   ├── arquitectura.md
 │   └── decisiones.md
-├── src/                 # Interfaz, si se confirma React
-├── src-tauri/           # Backend Tauri/Rust, si se confirma
+├── src/                 # Interfaz React + TypeScript
+├── src-tauri/           # Aplicación Tauri y backend Rust
 └── ...
 ```
 
-La estructura de código es orientativa y deberá ajustarse al stack finalmente aprobado.
+La estructura podrá ajustarse a las convenciones de Tauri y Vite al crear el proyecto, manteniendo la separación lógica definida.
 
-## 9. Riesgos y decisiones técnicas pendientes
+## 9. Decisiones técnicas para futuras iteraciones
 
-- Definir si el backend Rust de Tauri será suficiente para todas las operaciones iniciales.
-- Elegir mecanismo seguro y práctico de comunicación con OpenCode.
-- Definir estrategia de backups del archivo SQLite.
-- Definir historial y tratamiento de cambios retroactivos.
-- Definir soporte multidivisa y cotizaciones, si se incorporan conversiones.
-- Evaluar el alcance real de una futura versión móvil antes de imponer abstracciones prematuras.
+- Estrategia de backups y recuperación del archivo SQLite.
+- Modelo de historial/instantáneas por período.
+- Soporte de monedas y mecanismo de cotización.
+- Fórmula definitiva de cauciones, impuestos y redondeos.
+- Adaptador local seguro para operaciones de OpenCode sobre datos financieros.
+- Evaluación de una futura aplicación móvil.
