@@ -1,147 +1,179 @@
 # Requisitos — App de Finanzas Personales
 
-**Versión:** 0.1  
-**Estado:** Borrador inicial para revisión  
+**Versión:** 0.2  
+**Estado:** Base de la primera versión aprobada  
 **Tipo:** Aplicación personal de escritorio, local y extensible.
 
 ## 1. Objetivo
 
-Desarrollar una aplicación de escritorio para administrar finanzas personales, controlar gastos recurrentes y analizar inversiones mediante cauciones.
+Desarrollar una aplicación de escritorio para administrar gastos recurrentes y visualizar una comparación entre los gastos personales y el rendimiento de inversiones en cauciones.
 
-El objetivo principal es conocer el costo total de los servicios, cuánto corresponde pagar al usuario y si el rendimiento neto de las inversiones alcanza para cubrir los gastos considerados.
+La primera versión debe proporcionar una base funcional y clara sobre la cual incorporar mejoras gradualmente. No busca resolver desde el inicio todos los escenarios financieros.
 
-## 2. Alcance y decisiones confirmadas
+## 2. Alcance de la primera versión
 
-- Aplicación personal de escritorio inicialmente.
+- Aplicación personal de escritorio.
 - Funcionamiento local.
-- Alcance inicial intermedio.
-- Soporte de múltiples monedas.
-- Temas claro y oscuro.
-- Servicios mensuales en la primera versión; se descartan los servicios anuales por ahora.
-- División de gastos compartidos siempre en partes iguales.
-- Los resultados calculados no se editan directamente: se modifican sus datos de origen.
-- Se requiere contemplar una futura integración con OpenCode/IA.
+- Alcance inicial intermedio, priorizando las funciones esenciales.
+- Moneda de trabajo: pesos argentinos (ARS).
+- Tema claro y oscuro.
+- Gestión de servicios mensuales.
+- Gestión básica de inversiones en cauciones con datos ingresados manualmente.
+- Botón para abrir una terminal externa en el directorio del proyecto y ejecutar OpenCode.
+- Diseño preparado para poder ampliar el producto más adelante, sin implementar ahora conversión de monedas ni gestión histórica.
 
 ## 3. Requisitos funcionales
 
 ### RF-01 — Gestión de servicios
 
-La aplicación permitirá administrar gastos recurrentes (por ejemplo, Spotify o Crunchyroll) mediante una tabla.
+La aplicación permitirá administrar gastos recurrentes mediante una tabla.
 
 #### Datos de un servicio
+
 - Nombre del servicio.
-- Costo total.
+- Costo total en ARS.
 - Cantidad de personas que comparten el gasto.
 - Mi parte (calculada).
-- Moneda.
 - Notas.
 - Estado (activo o congelado).
 
-La columna de renovación mensual/anual queda fuera del alcance inicial. Todos los servicios administrados en esta primera versión serán mensuales.
+Todos los servicios de la primera versión serán mensuales. No se incluye una columna de renovación anual.
 
 #### Reglas de cálculo
+
 - La cantidad de personas incluye al usuario.
 - La división es siempre en partes iguales.
 - Fórmula: `Mi parte = Costo total / Cantidad de personas`.
 - La cantidad de personas debe ser un entero mayor o igual a 1.
 - `Mi parte` es un resultado calculado, no un campo editable.
-- Para cambiar el resultado se modifican el costo total o la cantidad de personas; el resultado se recalcula automáticamente.
+- Para modificar el resultado se cambian el costo total o la cantidad de personas; luego se recalcula automáticamente.
 
 #### Operaciones
+
 - Agregar un servicio.
 - Editar sus datos de origen y notas.
 - Eliminar un servicio.
 - Congelar un servicio sin eliminar sus datos.
-- Consultar servicios congelados y reactivarlos conservando sus datos.
+- Consultar servicios congelados.
+- Reactivar un servicio conservando sus datos anteriores.
 
-Un servicio congelado deja de mostrarse en la tabla activa y deja de participar de los totales. La definición exacta de si la congelación se administra por mes o hasta una reactivación queda pendiente.
+Un servicio congelado:
+- deja de mostrarse en la tabla de servicios activos;
+- deja de participar en los totales;
+- conserva sus datos;
+- permanece congelado indefinidamente hasta que el usuario decida reactivarlo.
 
 #### Totales
+
 Mostrar por separado:
 1. **Costo total de servicios:** suma de los costos completos de los servicios activos.
-2. **Mi gasto:** suma de las partes del usuario correspondientes a los servicios activos.
+2. **Mi gasto:** suma de las partes correspondientes al usuario en los servicios activos.
 
-Los importes de distintas monedas no deben sumarse entre sí. Los totales deben agruparse por moneda hasta que se defina una política de conversión.
+Todos los importes se expresan en ARS en esta versión.
 
 ### RF-02 — Gestión de inversiones
 
-Administrar inversiones en cauciones mediante una tabla en la que cada fila represente una inversión asociada a un mes.
+La aplicación permitirá cargar inversiones en cauciones y visualizar un resultado comparativo con los gastos.
 
-#### Datos previstos
+Cada fila representa una inversión asociada a un mes.
+
+#### Datos de la tabla
+
 - Mes.
 - Capital invertido.
-- Moneda.
 - TNA.
 - Plazo en días.
+- Impuestos.
 - Rendimiento bruto (calculado).
 - Gastos del mes.
-- Rendimiento neto después de impuestos (calculado).
+- Rendimiento neto (calculado).
 - Resultado de cobertura (calculado).
 
-#### Reglas
-- Capital, TNA y plazo son datos de origen ingresados por el usuario.
-- El rendimiento bruto se calcula a partir del capital, la TNA y el plazo.
-- El rendimiento neto se calcula restando los impuestos aplicables al rendimiento bruto.
-- Los resultados calculados no se editan directamente: se modifican sus datos de origen.
-- La fórmula exacta del rendimiento y el tratamiento impositivo quedan pendientes de definición.
+#### Ingreso de datos
+
+- Los campos de entrada comienzan en cero.
+- El usuario ingresa manualmente el capital y los parámetros de la inversión, incluyendo TNA, plazo e impuestos.
+- No se precargan tasas, plazos ni porcentajes impositivos como valores reales.
+- Los resultados calculados no se editan directamente: se modifican los datos de origen.
+
+#### Cálculo provisional
+
+La fórmula financiera definitiva, la convención de días y el tratamiento impositivo quedan fuera de esta etapa de definición. Para la primera visualización se podrá utilizar un cálculo o conjunto de datos de demostración provisional, identificado como tal y reemplazable cuando se definan las reglas reales.
+
+Los resultados provisionales sirven para comprobar la interfaz y el flujo de datos; no deben presentarse como cálculos financieros exactos.
 
 #### Cobertura
-Comparar el rendimiento neto con los gastos del mes:
-- Si el rendimiento neto es suficiente: `¡Sí cubre!`.
+
+Comparar el rendimiento neto mostrado con los gastos del mes:
+- Si el rendimiento alcanza o supera los gastos: `¡Sí cubre!`.
 - Si no alcanza: `Déficit de: $[importe faltante]`.
 
-La comparación solo es válida entre importes expresados en la misma moneda o luego de aplicar una política de conversión aprobada.
+La cobertura de la primera versión es una visualización basada en el cálculo provisional. Debe quedar aislada para poder sustituirse por la fórmula definitiva.
 
 ### RF-03 — Relación entre servicios e inversiones
 
-- El gasto personal de servicios alimentará inicialmente el dato `Gastos del mes` de las inversiones.
-- Los cambios en servicios activos deberán actualizar los totales correspondientes.
-- Los resultados de cobertura deberán recalcularse cuando cambien los gastos o los datos de inversión.
-- Está pendiente definir si `Gastos del mes` incluirá únicamente servicios o también otros tipos de gastos.
+- El gasto personal de servicios activos alimenta inicialmente el dato `Gastos del mes` de las inversiones.
+- Los cambios en servicios activos actualizan los totales.
+- Los resultados de cobertura se actualizan cuando cambian los gastos o los datos de inversión.
+- En esta primera versión, `Gastos del mes` considera los servicios administrados por el módulo Servicios. La incorporación de otras categorías de gastos podrá evaluarse posteriormente.
 
-### RF-04 — Integración con OpenCode e IA
+### RF-04 — Apertura de OpenCode
 
-La arquitectura deberá permitir que OpenCode interactúe con la aplicación desde la terminal y, a futuro, que la interfaz incluya un mecanismo para solicitar cambios a un modelo de IA.
+La aplicación incluirá un botón para abrir una terminal externa ubicada en el directorio del proyecto.
 
-Capacidades previstas:
-- Consultar servicios e inversiones.
-- Agregar y modificar registros.
-- Modificar datos de origen.
-- Consultar resultados calculados.
+Flujo esperado:
+1. El usuario presiona el botón.
+2. Se abre la terminal del sistema en la carpeta del proyecto.
+3. El usuario ejecuta manualmente `opencode`.
+4. El usuario interactúa con OpenCode desde esa terminal.
 
-Condiciones:
-- Las operaciones externas utilizarán las mismas reglas de negocio y validaciones que la interfaz.
-- No se permitirá acceso irrestricto ni escritura directa a la base de datos.
-- Las modificaciones deberán validarse y contar con un mecanismo de confirmación y registro.
-- El alcance preciso de permisos y confirmaciones queda pendiente.
+Este botón no representa una integración de chat dentro de la aplicación ni concede por sí mismo acceso estructurado a los datos financieros de la aplicación.
+
+La posibilidad de que OpenCode consulte o modifique servicios e inversiones mediante operaciones controladas queda reservada para una etapa posterior.
+
+### RF-05 — Apariencia
+
+- Ofrecer tema claro y tema oscuro.
+- Mantener legibilidad de tablas, formularios, totales e indicadores en ambos temas.
 
 ## 4. Requisitos no funcionales
 
 - **Localidad:** las funciones principales deben operar localmente, sin depender de conexión permanente a Internet.
-- **Persistencia:** conservar los datos entre ejecuciones.
+- **Persistencia:** conservar los datos entre ejecuciones mediante SQLite.
 - **Integridad:** centralizar reglas y cálculos.
 - **Mantenibilidad:** separar interfaz, aplicación, dominio y persistencia.
-- **Usabilidad:** tablas legibles, edición sencilla, navegación clara y temas claro/oscuro.
-- **Seguridad:** validar operaciones, especialmente las provenientes de herramientas externas.
-- **Extensibilidad:** evitar acoplamientos que dificulten incorporar módulos o una futura aplicación móvil.
+- **Usabilidad:** tablas legibles, edición sencilla y navegación clara.
+- **Seguridad:** validar entradas y operaciones locales.
+- **Extensibilidad:** permitir incorporar más adelante historial, conversión de monedas e integración avanzada sin imponer complejidad innecesaria a la primera versión.
 
-## 5. Fuera del alcance inicial
+## 5. Fuera del alcance de la primera versión
 
-- Servicios con renovación anual.
+- Conversión de ARS a otras monedas y cotizaciones.
+- Historial de precios, tasas, inversiones y resultados por períodos.
+- Fórmula financiera definitiva de cauciones y parametrización fiscal completa.
 - Sincronización en la nube.
 - Conexión automática con bancos o plataformas financieras.
 - Importación automática de movimientos bancarios.
 - Editor de fórmulas de estilo Excel.
 - División desigual de gastos compartidos.
+- Chat de IA embebido.
+- Integración avanzada para que OpenCode modifique datos financieros mediante una API local.
 - Aplicación móvil terminada.
 
-## 6. Decisiones pendientes
+## 6. Extensiones futuras contempladas
 
-1. Política de conversión y visualización de múltiples monedas.
-2. Regla y porcentaje de impuestos aplicables a las cauciones.
-3. Convención de días y fórmula exacta para el rendimiento.
-4. Si `Gastos del mes` incluye solamente servicios o también otros gastos.
-5. Conservación histórica de costos, tasas, inversiones y resultados.
-6. Si congelar un servicio se define por mes o hasta reactivarlo.
-7. Permisos de OpenCode, operaciones que requieren confirmación y registro de cambios.
-8. Tratamiento de redondeos en la división de costos compartidos y en los cálculos financieros.
+Aunque no se implementan ahora, el diseño debe evitar bloquear:
+1. Conversión y visualización de importes en otras monedas.
+2. Historial de cambios para que actualizar un precio o parámetro no altere la información de períodos anteriores.
+3. Fórmula definitiva de rendimiento, impuestos y convención de días para cauciones.
+4. Operaciones controladas para que OpenCode consulte y modifique datos de la aplicación.
+5. Incorporación de otros tipos de gastos.
+
+## 7. Cuestiones para definir durante futuras iteraciones
+
+- Fórmula de rendimiento de cauciones, base anual y convención de días.
+- Regla de cálculo y aplicación de impuestos.
+- Precisión y redondeo de los resultados.
+- Política de confirmación y registro de modificaciones solicitadas por OpenCode.
+- Estrategia de copias de seguridad y recuperación de SQLite.
+- Alcance de una futura versión móvil.
