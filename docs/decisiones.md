@@ -1,48 +1,55 @@
 # Registro de decisiones — App de Finanzas
 
-Este documento separa las decisiones confirmadas por el usuario de las propuestas y cuestiones pendientes. Actualizarlo cuando se acuerden cambios.
+Este documento separa decisiones confirmadas, límites de la primera versión y extensiones futuras. Actualizarlo cuando el usuario confirme cambios.
 
 ## Decisiones confirmadas
 
 | ID | Tema | Decisión |
 |---|---|---|
 | D-001 | Plataforma | Aplicación de escritorio inicialmente. |
-| D-002 | Ejecución | Local. |
-| D-003 | Alcance | Intermedio. |
-| D-004 | Monedas | La aplicación deberá contemplar múltiples monedas. La política de conversión aún no está definida. |
-| D-005 | Apariencia | Tema claro y oscuro. |
-| D-006 | Servicios compartidos | División siempre en partes iguales. |
-| D-007 | Cantidad de personas | El número incluye al usuario. |
-| D-008 | Mi parte | Cálculo automático: costo total dividido por cantidad de personas. |
-| D-009 | Renovación | Se elimina la columna de renovación anual/mensual en la primera versión; se administran servicios mensuales. |
-| D-010 | Totales de servicios | Mostrar tanto el costo completo de todos los servicios activos como el total que corresponde pagar al usuario. |
-| D-011 | Congelar servicios | El servicio congelado deja de mostrarse en la tabla activa y deja de participar en los totales, pero sus datos se conservan para poder recuperarlo/reactivarlo. |
-| D-012 | Celdas calculadas | No se sobrescriben los resultados. Se modifican los datos de origen y la aplicación recalcula. |
-| D-013 | IA/OpenCode | Se quiere habilitar interacción desde terminal y se contempla un botón futuro en la aplicación. Las operaciones deben respetar las reglas de la aplicación. |
+| D-002 | Ejecución | Funcionamiento local. |
+| D-003 | Alcance | Primera versión intermedia y acotada, orientada a establecer una base funcional. |
+| D-004 | Moneda inicial | Trabajar exclusivamente en pesos argentinos (ARS) en la primera versión. |
+| D-005 | Conversión de monedas | Queda fuera del alcance actual; se mantiene abierta como posible extensión futura. |
+| D-006 | Apariencia | Tema claro y oscuro. |
+| D-007 | Servicios compartidos | División siempre en partes iguales. |
+| D-008 | Cantidad de personas | El número de personas incluye al usuario. |
+| D-009 | Mi parte | Cálculo automático: costo total dividido por cantidad de personas. |
+| D-010 | Renovación | No se incluye una columna de renovación anual; la primera versión administra servicios mensuales. |
+| D-011 | Totales de servicios | Mostrar el costo completo de los servicios activos y el total correspondiente al usuario. |
+| D-012 | Congelar servicios | El servicio congelado se oculta de la tabla activa y deja de participar en los totales, pero sus datos se conservan. |
+| D-013 | Duración del congelamiento | Indefinido, hasta que el usuario decida reactivarlo. |
+| D-014 | Celdas calculadas | No se sobrescriben resultados; se modifican los datos de origen y se recalcula. |
+| D-015 | Actualización de precios | El usuario actualizará los precios manualmente o, cuando esté disponible la integración prevista, mediante OpenCode. No se requiere actualización automática. |
+| D-016 | Datos iniciales de inversiones | Los campos de entrada comienzan en cero. El usuario ingresa manualmente los datos, incluyendo TNA, plazo e impuestos. |
+| D-017 | Fórmula de cauciones | La fórmula definitiva no se define ahora. Se permite un cálculo o dato provisional de demostración para visualizar el flujo, claramente identificado como no definitivo. |
+| D-018 | Gastos de inversiones | Inicialmente se alimentan con el gasto personal de los servicios activos. |
+| D-019 | OpenCode — primera etapa | La aplicación tendrá un botón para abrir una terminal externa en el directorio del proyecto; el usuario ejecutará `opencode` manualmente. |
+| D-020 | OpenCode — datos financieros | La integración para consultar o modificar datos de la aplicación queda para una etapa posterior y deberá usar operaciones controladas. |
+| D-021 | Stack | Tauri 2, React, TypeScript, Vite, Rust y SQLite quedan aprobados. |
+| D-022 | Historial | No implementar historial financiero en la primera versión. Mantener abierta la posibilidad de incorporarlo luego sin alterar innecesariamente la arquitectura. |
 
-## Propuestas técnicas aún no confirmadas
+## Alcance y extensiones futuras
 
-| ID | Propuesta | Estado |
-|---|---|---|
-| P-001 | Tauri 2 para escritorio | Recomendada, pendiente de aprobación. |
-| P-002 | React + TypeScript + Vite para interfaz | Recomendada, pendiente de aprobación. |
-| P-003 | Rust para backend local | Recomendada, pendiente de aprobación. |
-| P-004 | SQLite para persistencia | Recomendada, pendiente de aprobación. |
-| P-005 | Arquitectura por capas: presentación, aplicación, dominio, persistencia e integración | Recomendada como dirección arquitectónica. |
-| P-006 | Adaptador local de operaciones controladas para OpenCode | Recomendado; mecanismo concreto pendiente. |
+Los siguientes temas están deliberadamente fuera de la primera versión, no son bloqueos para construir la base inicial:
 
-## Cuestiones pendientes
+1. Conversión y visualización de otras monedas.
+2. Historial de precios, tasas, inversiones y resultados por período.
+3. Fórmula definitiva, convención de días y tratamiento impositivo de cauciones.
+4. Integración controlada para que OpenCode consulte y modifique datos financieros.
+5. Incorporación de otras categorías de gastos.
+6. Versión móvil.
 
-1. Cómo presentar y comparar monedas distintas; si habrá moneda base, cotización manual o automática y cuándo se convierte.
-2. Porcentaje o regla de impuestos a descontar del rendimiento de cauciones.
-3. Fórmula exacta del rendimiento y convención de días (por ejemplo, base anual utilizada).
-4. Si los gastos mensuales de inversiones incluirán solo servicios o también otros gastos.
-5. Qué información histórica se conservará cuando cambien costos, tasas o datos de inversiones.
-6. Si el congelamiento de un servicio será indefinido hasta reactivación o tendrá períodos/meses específicos.
-7. Qué operaciones de OpenCode requerirán confirmación y cuáles serán de solo lectura.
-8. Política de redondeo y precisión para división de importes y rendimientos.
-9. Estrategia de copias de seguridad y recuperación de la base de datos.
+## Cuestiones por definir durante futuras iteraciones
+
+- Fórmula de rendimiento de cauciones, base anual y convención de días.
+- Regla de cálculo y aplicación de impuestos.
+- Precisión y redondeo de resultados.
+- Si los gastos mensuales incluirán otras categorías además de servicios.
+- Política de confirmación y registro de cambios solicitados por OpenCode cuando exista integración de datos.
+- Estrategia de copias de seguridad y recuperación de SQLite.
+- Alcance y arquitectura de una eventual versión móvil.
 
 ## Criterio de mantenimiento
 
-Una decisión solo pasa a “confirmada” cuando el usuario la aprueba explícitamente. Al cambiar una decisión, actualizar este registro y los documentos afectados; no borrar el historial de decisiones relevantes.
+Una decisión solo pasa a “confirmada” cuando el usuario la aprueba explícitamente. Al cambiar una decisión, actualizar este registro y los documentos afectados. Las extensiones futuras deben permanecer identificadas como tales y no incorporarse silenciosamente al alcance de la primera versión.
