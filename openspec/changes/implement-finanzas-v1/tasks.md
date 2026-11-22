@@ -1,0 +1,110 @@
+Convención: cada tarea indica dependencias, criterio de aceptación y requisitos que implementa. Las tareas de la sección 11 están bloqueadas por decisiones pendientes y no deben ejecutarse hasta su aprobación.
+
+## 1. Preparación e infraestructura del proyecto
+
+- [ ] 1.1 Verificar el toolchain local (Node.js, Rust estable, CLI de Tauri y WebView2) y registrar las versiones obtenidas — Depende de: ninguna. Aceptación: los comandos de versión responden y quedan documentados en el README de desarrollo. Requisitos: NFR de mantenibilidad.
+- [ ] 1.2 Crear el proyecto de interfaz con Vite + React + TypeScript en `src/` y verificar que el build vacío compile — Depende de: 1.1. Aceptación: `npm run build` finaliza sin errores y genera la carpeta de salida. Requisitos: NFR de mantenibilidad.
+- [ ] 1.3 Inicializar Tauri 2 en `src-tauri/` y verificar que la ventana de desarrollo abra — Depende de: 1.2. Aceptación: el comando de desarrollo abre una ventana con la aplicación vacía. Requisitos: stack aprobado.
+- [ ] 1.4 Crear la estructura de carpetas por capas (`domain`, `application`, `infrastructure`, `commands` en Rust; `app`, `features`, `shared` en React) con módulos vacíos y verificar que compile — Depende de: 1.3. Aceptación: la estructura existe y el proyecto compila sin advertencias de módulos faltantes. Requisitos: NFR de mantenibilidad.
+- [ ] 1.5 Configurar formato, lint y pruebas (rustfmt, clippy, ESLint, Vitest y cargo test) y verificar que los comandos pasen en el proyecto vacío — Depende de: 1.4. Aceptación: todos los comandos de calidad finalizan correctamente. Requisitos: NFR de mantenibilidad.
+- [ ] 1.6 Documentar en el README los comandos de desarrollo, prueba y build — Depende de: 1.5. Aceptación: el README permite ejecutar el proyecto desde cero sin pasos faltantes. Requisitos: NFR de mantenibilidad.
+
+## 2. Configuración de Tauri, React y SQLite
+
+- [ ] 2.1 Agregar la dependencia de SQLite al backend y crear el módulo de conexión con una base en memoria para pruebas — Depende de: 1.5. Aceptación: una prueba abre una conexión, ejecuta una consulta simple y la cierra. Requisitos: NFR de persistencia.
+- [ ] 2.2 Implementar migraciones versionadas y la tabla de control de esquema — Depende de: 2.1. Aceptación: una prueba aplica las migraciones dos veces y la segunda no produce errores ni duplicados. Requisitos: NFR de persistencia.
+- [ ] 2.3 Resolver la ruta del archivo SQLite en el directorio de datos de la aplicación y verificar que quede fuera del repositorio — Depende de: 2.2. Aceptación: la prueba informa una ruta bajo el directorio de datos y el archivo se crea allí. Requisitos: NFR de localidad y persistencia.
+- [ ] 2.4 Definir los DTOs de entrada/salida y el tipo de error serializable con código, mensaje y campo afectado — Depende de: 1.4. Aceptación: pruebas de serialización y deserialización pasan para DTOs válidos y errores. Requisitos: NFR de seguridad y usabilidad.
+- [ ] 2.5 Exponer un comando Tauri de estado de la aplicación y consumirlo desde la interfaz — Depende de: 2.3, 2.4. Aceptación: la interfaz invoca el comando y muestra la respuesta esperada. Requisitos: NFR de mantenibilidad.
+- [ ] 2.6 Crear el cliente tipado de comandos en `src/shared` con manejo uniforme de errores — Depende de: 2.4, 2.5. Aceptación: pruebas unitarias cubren invocación exitosa y mapeo de error con campo. Requisitos: NFR de usabilidad y seguridad.
+
+## 3. Persistencia y modelos de dominio
+
+- [ ] 3.1 Implementar el tipo de importe monetario en centavos con operaciones exactas y pruebas de ausencia de punto flotante — Depende de: 2.2. Aceptación: pruebas de suma, resta, comparación y conservación de 10000,10 pasan sin pérdida de precisión. Requisitos: financial-calculations (precisión exacta).
+- [ ] 3.2 Implementar la entidad de servicio con validaciones de nombre, costo, cantidad de personas, notas, moneda ARS y estado — Depende de: 3.1. Aceptación: pruebas unitarias aceptan datos válidos y rechazan nombre vacío, costo negativo, costo con más de dos decimales y cantidad menor que 1. Requisitos: services (validación).
+- [ ] 3.3 Implementar el cálculo de la parte del usuario y de los totales de servicios activos en el dominio — Depende de: 3.2. Aceptación: pruebas con 10000,00 entre 4 (2500,00), 15000,00 entre 3 (5000,00), sin servicios activos (0,00) y exclusión de congelados pasan. Requisitos: services (cálculo de parte y totales), financial-calculations (fuente única).
+- [ ] 3.4 Implementar el repositorio SQLite de servicios (alta, edición, eliminación, cambio de estado, listados) — Depende de: 2.3, 3.2. Aceptación: pruebas de integración con base temporal cubren CRUD, filtrado por estado y persistencia tras reabrir la conexión. Requisitos: services (todas las operaciones de persistencia).
+- [ ] 3.5 Implementar la entidad de inversión con validaciones de mes, capital, TNA, plazo e impuestos — Depende de: 3.1. Aceptación: pruebas unitarias rechazan mes inválido, capital o impuestos negativos, plazo no entero y TNA no numérica. Requisitos: investments (validación).
+- [ ] 3.6 Implementar el repositorio SQLite de inversiones — Depende de: 2.3, 3.5. Aceptación: pruebas de integración cubren alta, edición, listado por mes y persistencia tras reabrir la conexión. Requisitos: investments (registro y edición).
+- [ ] 3.7 Implementar el repositorio local de preferencias sobre la tabla de configuración — Depende de: 2.2. Aceptación: pruebas cubren escritura, lectura, actualización y ausencia de una clave. Requisitos: application-settings (persistencia).
+- [ ] 3.8 Implementar el módulo de cálculos financieros con resultados tipados por estado (`disponible`, `no_disponible`, `provisional`) y motivo — Depende de: 3.1, 3.3, 3.5. Aceptación: pruebas verifican que rendimiento bruto, rendimiento neto y cobertura devuelven `no_disponible` mientras falten las decisiones, sin fórmula alternativa. Requisitos: financial-calculations (estado de resultados y decisiones pendientes).
+
+## 4. Módulo Servicios
+
+- [ ] 4.1 Implementar los casos de uso de alta, edición y eliminación de servicios con validación y confirmación de borrado — Depende de: 3.4. Aceptación: pruebas de casos de uso cubren alta válida, alta inválida sin persistencia, edición con recálculo y eliminación confirmada y cancelada. Requisitos: services (registrar, editar, eliminar).
+- [ ] 4.2 Implementar los casos de uso de congelar, reactivar y listar servicios congelados — Depende de: 3.4. Aceptación: pruebas cubren congelar activo, congelar ya congelado sin cambio, reactivar congelado y reactivar activo sin cambio. Requisitos: services (congelar, consultar y reactivar).
+- [ ] 4.3 Implementar el caso de uso de totales de servicios activos (costo total y gasto personal) — Depende de: 3.3, 3.4. Aceptación: pruebas devuelven 16000,00 y 5500,00 para los casos de referencia, 0,00 sin activos y actualizan tras eliminar. Requisitos: services (totales), financial-calculations (comparación en ARS).
+- [ ] 4.4 Exponer los comandos Tauri del módulo Servicios y mapear sus errores con campo afectado — Depende de: 4.1, 4.2, 4.3, 2.6. Aceptación: pruebas de contrato verifican DTOs y errores para cada comando. Requisitos: services (todas las operaciones).
+- [ ] 4.5 Construir la pantalla de Servicios con la tabla activa y sus columnas (nombre, costo total, cantidad de personas, mi parte, notas, estado) — Depende de: 4.4. Aceptación: prueba de render muestra encabezados y una fila por servicio activo; verificación manual confirma lectura clara. Requisitos: services (tabla activa), application-settings (legibilidad).
+- [ ] 4.6 Construir el formulario de alta y edición con etiquetas por campo y mensajes de validación asociados — Depende de: 4.4. Aceptación: pruebas de render cubren envío válido, nombre vacío, costo inválido y cantidad inválida, con mensaje en el campo correcto. Requisitos: services (registrar y editar), application-settings (legibilidad).
+- [ ] 4.7 Construir la vista de servicios congelados con acción de reactivación — Depende de: 4.4. Aceptación: prueba de render lista congelados con sus datos y verificación manual confirma que la reactivación devuelve el servicio a la tabla activa. Requisitos: services (consultar y reactivar).
+- [ ] 4.8 Mostrar en la pantalla de Servicios el costo total de servicios activos y el gasto personal como totales separados — Depende de: 4.3, 4.5. Aceptación: prueba de render muestra ambos totales con etiquetas distintas y se actualizan tras una edición. Requisitos: services (totales).
+- [ ] 4.9 Implementar la confirmación explícita antes de eliminar y verificar que cancelar no altere datos ni totales — Depende de: 4.6. Aceptación: prueba de flujo cubre confirmar y cancelar. Requisitos: services (eliminar).
+
+## 5. Módulo Inversiones
+
+- [ ] 5.1 Implementar los casos de uso de alta y edición de inversiones con valores iniciales en cero y validaciones — Depende de: 3.6. Aceptación: pruebas cubren alta válida, defaults en cero, mes obligatorio y datos inválidos sin persistencia. Requisitos: investments (registrar y editar).
+- [ ] 5.2 Implementar la derivación de gastos del mes desde la suma de partes de servicios activos — Depende de: 3.3, 3.6. Aceptación: pruebas devuelven 5500,00 con partes 2500,00 y 3000,00, 0,00 sin activos y recalculan tras congelar un servicio. Requisitos: investments (gastos del mes).
+- [ ] 5.3 Exponer los comandos Tauri del módulo Inversiones y del resumen mensual — Depende de: 5.1, 5.2, 2.6. Aceptación: pruebas de contrato verifican DTOs, valores derivados y estados. Requisitos: investments (registro, edición y consulta).
+- [ ] 5.4 Construir la tabla de inversiones con mes, datos de origen y columnas de resultados de solo lectura — Depende de: 5.3. Aceptación: prueba de render muestra todas las columnas y no permite edición de resultados. Requisitos: investments (tabla), financial-calculations (no edición).
+- [ ] 5.5 Construir el formulario de inversión con capital, TNA, plazo e impuestos iniciando en cero — Depende de: 5.3. Aceptación: prueba de render verifica los cuatro campos en 0 y los mensajes de validación por campo. Requisitos: investments (registrar y validar).
+- [ ] 5.6 Mostrar los resultados derivados con su estado y presentar como no disponible lo que dependa de decisiones pendientes — Depende de: 3.8, 5.4. Aceptación: prueba de render muestra "no disponible" en rendimiento bruto, rendimiento neto y cobertura cuando corresponde, sin valores inventados. Requisitos: financial-calculations (estado de resultados), investments (tabla).
+- [ ] 5.7 Implementar la presentación de cobertura para resultados disponibles, incluyendo "¡Sí cubre!" y "Déficit de: $[importe]", y el estado no disponible — Depende de: 5.2, 3.8. Aceptación: pruebas con resultados inyectados cubren cobertura suficiente, déficit de 1500,00, gastos en cero y resultado no disponible. Requisitos: investments (cobertura).
+
+## 6. Integración entre módulos
+
+- [ ] 6.1 Asegurar que todo cambio en servicios invalide y recalcule gastos del mes y cobertura de las inversiones — Depende de: 4.4, 5.3. Aceptación: prueba de integración verifica recálculo tras alta, edición, eliminación, congelación y reactivación. Requisitos: investments (recálculo), financial-calculations (recalculo determinista).
+- [ ] 6.2 Implementar el resumen mensual que combine totales de servicios, gastos del mes y resultados de inversión — Depende de: 6.1. Aceptación: prueba devuelve un resumen consistente para un mes con servicios e inversión. Requisitos: investments (gastos del mes y cobertura), services (totales).
+- [ ] 6.3 Actualizar automáticamente la pantalla de Inversiones cuando cambian los servicios, sin acción manual del usuario — Depende de: 6.1. Aceptación: verificación manual confirma que los gastos del mes cambian al editar un servicio y volver a Inversiones. Requisitos: investments (recálculo).
+- [ ] 6.4 Verificar la consistencia entre el gasto personal de servicios y los gastos del mes cuando no existen otros gastos — Depende de: 6.2. Aceptación: prueba compara ambos valores y falla si difieren. Requisitos: investments (gastos del mes), services (totales).
+
+## 7. Preferencias visuales y temas
+
+- [ ] 7.1 Definir tokens mínimos de color y tipografía para tema claro y oscuro en un único archivo de estilos — Depende de: 1.2. Aceptación: ambos temas se aplican cambiando un atributo y no hay colores hardcodeados en componentes. Requisitos: application-settings (tema y legibilidad).
+- [ ] 7.2 Implementar el selector de tema y persistir la preferencia — Depende de: 3.7, 7.1. Aceptación: prueba verifica cambio inmediato y persistencia tras reiniciar. Requisitos: application-settings (tema y persistencia).
+- [ ] 7.3 Aplicar el tema guardado antes del primer render y usar claro cuando no exista preferencia — Depende de: 7.2. Aceptación: prueba verifica que no haya parpadeo de tema y que el valor inicial sea claro. Requisitos: application-settings (tema).
+- [ ] 7.4 Construir el shell de navegación con únicamente Servicios e Inversiones — Depende de: 4.5, 5.4, 7.1. Aceptación: prueba de render muestra solo esas dos secciones y permite alternar entre ellas. Requisitos: application-settings (navegación).
+- [ ] 7.5 Revisar legibilidad, contraste y foco visible de tablas, formularios y mensajes en ambos temas — Depende de: 7.4. Aceptación: checklist manual completado sin elementos ilegibles ni inaccesibles. Requisitos: application-settings (legibilidad).
+- [ ] 7.6 Verificar que no existan buscadores, notificaciones, gráficos, reportes ni secciones adicionales — Depende de: 7.4. Aceptación: prueba de render y revisión del árbol de navegación confirman ausencia de esas funcionalidades. Requisitos: application-settings (navegación limitada).
+
+## 8. Apertura de terminal para OpenCode
+
+- [ ] 8.1 Implementar en infraestructura la apertura de una terminal externa con directorio de trabajo validado y argumentos fijos — Depende de: 1.4. Aceptación: pruebas unitarias verifican validación de ruta existente y construcción de argumentos sin texto de usuario. Requisitos: opencode-launcher (apertura segura).
+- [ ] 8.2 Exponer el comando Tauri de apertura de terminal y su error serializable — Depende de: 8.1, 2.4. Aceptación: prueba de contrato cubre éxito y fallo de apertura. Requisitos: opencode-launcher (abrir terminal e informar errores).
+- [ ] 8.3 Agregar el control visible de apertura de terminal con mensaje de error en caso de fallo — Depende de: 8.2, 7.4. Aceptación: prueba de render muestra el control y el mensaje de error; verificación manual confirma la apertura. Requisitos: opencode-launcher (abrir terminal e informar errores).
+- [ ] 8.4 Verificar manualmente en Windows que la terminal abre en el directorio del proyecto y que no se ejecuta ningún comando automáticamente — Depende de: 8.3. Aceptación: checklist manual confirma directorio correcto y terminal sin comandos precargados. Requisitos: opencode-launcher (ejecución manual).
+- [ ] 8.5 Verificar que la apertura de terminal no acceda a repositorios, datos financieros ni SQLite — Depende de: 8.2. Aceptación: revisión del comando y prueba confirman ausencia de dependencias de persistencia. Requisitos: opencode-launcher (sin acceso a datos).
+
+## 9. Pruebas y validaciones
+
+- [ ] 9.1 Ejecutar y completar las pruebas de dominio de todas las reglas aprobadas (parte, totales, gastos del mes, estados) — Depende de: 4.3, 5.2, 3.8. Aceptación: cargo test pasa con cobertura de los escenarios de las especificaciones implementadas. Requisitos: services, investments, financial-calculations.
+- [ ] 9.2 Ejecutar las pruebas de integración de repositorios y migraciones sobre bases temporales — Depende de: 3.4, 3.6, 3.7. Aceptación: cargo test pasa y no deja archivos residuales. Requisitos: NFR de persistencia e integridad.
+- [ ] 9.3 Ejecutar las pruebas de contrato de todos los comandos Tauri — Depende de: 4.4, 5.3, 8.2. Aceptación: pruebas verifican DTOs, estados y errores. Requisitos: NFR de seguridad.
+- [ ] 9.4 Ejecutar las pruebas de formularios, mensajes por campo y estados de resultados en la interfaz — Depende de: 4.6, 5.5, 5.6. Aceptación: Vitest pasa y cada validación muestra su mensaje en el campo correcto. Requisitos: services, investments, application-settings.
+- [ ] 9.5 Verificar que `src/` no contenga cálculos financieros ni fórmulas de negocio — Depende de: 6.4. Aceptación: revisión y búsqueda de operaciones de cálculo no encuentran lógica financiera en la interfaz. Requisitos: financial-calculations (fuente única).
+- [ ] 9.6 Completar el checklist de humo manual: alta y edición de servicio, congelación y reactivación, alta de inversión, cambio de tema y apertura de terminal — Depende de: 8.4, 7.5. Aceptación: checklist completado sin fallos bloqueantes. Requisitos: todas las capacidades.
+- [ ] 9.7 Verificar determinismo y recálculo: mismos datos producen el mismo resultado y todo cambio de origen actualiza los derivados — Depende de: 6.1. Aceptación: pruebas repetidas producen valores idénticos y los derivados se actualizan tras cada cambio. Requisitos: financial-calculations (determinismo).
+
+## 10. Preparación de la primera versión funcional
+
+- [ ] 10.1 Generar el build de producción de la interfaz y de la aplicación de escritorio — Depende de: 9.1, 9.2, 9.3, 9.4, 9.6. Aceptación: el build finaliza y produce un ejecutable instalable. Requisitos: NFR de mantenibilidad.
+- [ ] 10.2 Verificar que la aplicación instalada use la base en el directorio de datos y no escriba en el repositorio — Depende de: 10.1. Aceptación: inspección confirma la ubicación de la base y ausencia de archivos de datos en el proyecto. Requisitos: NFR de localidad y persistencia.
+- [ ] 10.3 Documentar en el README la ejecución, la ubicación de los datos y el alcance de la primera versión — Depende de: 10.1. Aceptación: el README describe instalación, ejecución, datos y límites conocidos. Requisitos: NFR de mantenibilidad.
+- [ ] 10.4 Revisar que no existan funcionalidades fuera de alcance (multidivisa, anuales, historial, backups, reportes, gráficos, buscadores, notificaciones, chat de IA) — Depende de: 10.1. Aceptación: checklist contra `proposal.md` sin coincidencias fuera de alcance. Requisitos: alcance aprobado.
+- [ ] 10.5 Verificar que ningún resultado bloqueado se muestre como definitivo y que la cobertura no emita veredicto sin rendimiento neto — Depende de: 10.1. Aceptación: pruebas y revisión manual confirman estados no disponibles correctos. Requisitos: financial-calculations (estado de resultados), investments (cobertura).
+
+## 11. Tareas bloqueadas por decisiones pendientes
+
+No ejecutar hasta que la decisión correspondiente esté aprobada y registrada en `docs/decisiones.md`.
+
+- [ ] 11.1 Implementar la fórmula definitiva del rendimiento bruto y la convención de días — BLOQUEADA: fórmula y base anual pendientes. Depende de: aprobación de la decisión financiera. Aceptación: pruebas contra casos de referencia aprobados por el usuario. Requisitos: financial-calculations (fórmula de rendimiento), investments (rendimiento bruto).
+- [ ] 11.2 Implementar el tratamiento impositivo y el cálculo del rendimiento neto — BLOQUEADA: regla o porcentaje de impuestos pendiente. Depende de: 11.1 y aprobación impositiva. Aceptación: pruebas contra casos de referencia aprobados. Requisitos: financial-calculations (tratamiento impositivo), investments (rendimiento neto).
+- [ ] 11.3 Definir y aplicar la política de redondeo y precisión en divisiones y cálculos financieros — BLOQUEADA: política pendiente. Depende de: aprobación de precisión. Aceptación: pruebas documentan el redondeo acordado en todos los puntos de aplicación. Requisitos: financial-calculations (precisión y redondeo).
+- [ ] 11.4 Confirmar la semántica del campo impuestos (importe absoluto o alícuota) y migrar el esquema si corresponde — BLOQUEADA: tratamiento impositivo pendiente. Depende de: 11.2. Aceptación: esquema y DTOs coherentes con la semántica aprobada y pruebas de migración pasan. Requisitos: investments (impuestos).
+- [ ] 11.5 Definir si los gastos del mes incluyen otros gastos además de servicios e implementarlo — BLOQUEADA: alcance de gastos pendiente. Depende de: decisión de alcance. Aceptación: pruebas cubren la inclusión o exclusión acordada. Requisitos: investments (gastos del mes).
+- [ ] 11.6 Definir si se admite más de una inversión por mes y aplicar la restricción o el agregado correspondiente — BLOQUEADA: unicidad pendiente. Depende de: decisión de modelo. Aceptación: comportamiento documentado y probado para el caso aprobado. Requisitos: investments (registro por mes).
+- [ ] 11.7 Evaluar congelamiento por período si se aprueba ese modelo — BLOQUEADA: modelo de congelamiento pendiente. Depende de: decisión de congelamiento. Aceptación: pruebas cubren el período aprobado y la migración de datos existentes. Requisitos: services (congelar).
+- [ ] 11.8 Implementar conservación histórica de costos, tasas, inversiones y resultados — BLOQUEADA: estrategia de historial pendiente. Depende de: decisión de historial. Aceptación: pruebas demuestran que los cambios retroactivos no alteran los valores históricos acordados. Requisitos: financial-calculations (resultados), investments.
+- [ ] 11.9 Implementar copias de seguridad y recuperación de la base — BLOQUEADA: estrategia pendiente. Depende de: decisión de backups. Aceptación: prueba de restauración recupera el estado esperado. Requisitos: NFR de persistencia.
+- [ ] 11.10 Implementar acceso controlado de OpenCode a los datos financieros — BLOQUEADA: permisos y confirmaciones pendientes. Depende de: política de integración. Aceptación: operaciones de lectura y escritura respetan validaciones, confirmación y registro. Requisitos: opencode-launcher (fuera de alcance actual), NFR de seguridad.
+- [ ] 11.11 Implementar conversión multidivisa y política de cotizaciones — BLOQUEADA: fuera de alcance de la primera versión; requiere decisión de moneda. Depende de: aprobación de política de monedas. Aceptación: pruebas cubren la política aprobada sin sumar monedas distintas. Requisitos: financial-calculations (moneda).
