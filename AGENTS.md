@@ -1,44 +1,72 @@
 # Instrucciones para agentes — App de Finanzas
 
 ## Contexto del proyecto
-Aplicación personal de finanzas, inicialmente de escritorio y funcionamiento local. El objetivo es administrar servicios recurrentes y analizar inversiones en cauciones para evaluar si sus rendimientos cubren los gastos.
+
+Aplicación personal de finanzas, inicialmente de escritorio y de funcionamiento local. La primera versión busca establecer una base funcional para administrar servicios mensuales y visualizar cómo una inversión en caución se compara con los gastos.
+
+El alcance inicial trabaja exclusivamente en pesos argentinos (ARS). La conversión de monedas y el historial financiero avanzado quedan reservados para futuras versiones.
 
 ## Antes de trabajar
+
 1. Leer `docs/requisitos.md`, `docs/arquitectura.md` y `docs/decisiones.md`.
 2. Distinguir entre:
-   - decisiones confirmadas por el usuario;
-   - propuestas técnicas todavía no aprobadas;
-   - cuestiones pendientes.
+   - decisiones confirmadas;
+   - comportamientos provisionales o de demostración;
+   - extensiones futuras;
+   - cuestiones todavía pendientes.
 3. Si una tarea depende de una decisión pendiente, preguntar antes de asumirla.
-4. No iniciar funcionalidades fuera del alcance acordado sin autorización.
+4. Respetar el alcance de la primera versión. No adelantar funcionalidades futuras sin autorización.
 
-## Reglas de trabajo
-- No inventar requisitos ni cambiar silenciosamente reglas de negocio.
+## Stack aprobado
+
+- Tauri 2.
+- React.
+- TypeScript.
+- Vite.
+- Rust para el backend local.
+- SQLite para persistencia.
+
+## Reglas de producto y negocio
+
+- La moneda de la primera versión es ARS. No implementar conversión ni cotizaciones en esta etapa.
+- Los servicios iniciales son mensuales; no agregar renovaciones anuales.
+- Los gastos compartidos se dividen siempre en partes iguales.
+- La cantidad de personas incluye al usuario.
+- `Mi parte` se calcula como costo total dividido por cantidad de personas.
+- Mostrar por separado el costo completo de servicios activos y el importe correspondiente al usuario.
+- Congelar un servicio lo oculta de la tabla activa y lo excluye de los totales. La congelación es indefinida hasta que el usuario lo reactive; no eliminar sus datos.
+- Los resultados calculados no se editan directamente. Se modifican los datos de origen y se recalculan.
+- En inversiones, los campos de entrada comienzan en cero y el usuario ingresa manualmente los datos, incluyendo TNA, plazo e impuestos.
+- La fórmula financiera definitiva no está aprobada. Cualquier cálculo provisional o dato de demostración debe identificarse claramente como tal y no presentarse como asesoramiento ni como resultado financiero exacto.
+- Los gastos de servicios activos alimentan inicialmente el importe de gastos usado para comparar la inversión.
+
+## Reglas técnicas
+
 - Priorizar soluciones simples, legibles y mantenibles.
-- Mantener separadas presentación, lógica de aplicación, dominio y persistencia.
-- Centralizar los cálculos financieros y las reglas de negocio. No duplicarlos en la interfaz ni en integraciones.
-- Las interfaces gráficas y las herramientas externas deben utilizar las mismas operaciones y validaciones.
-- No permitir que OpenCode u otra IA modifique directamente la base de datos. Las operaciones externas deben pasar por una interfaz controlada de la aplicación.
-- Validar entradas, cantidades, monedas y operaciones antes de persistir cambios.
-- No editar directamente resultados calculados: modificar sus datos de origen y recalcular.
-- Preservar los datos de servicios congelados; congelar no equivale a eliminar.
-- No introducir servicios anuales en el alcance inicial.
-- No sumar importes de monedas distintas sin una regla de conversión aprobada.
-- No incorporar dependencias, infraestructura remota o complejidad innecesaria.
+- Mantener separadas presentación, aplicación, dominio y persistencia.
+- Centralizar los cálculos y reglas de negocio; no duplicarlos en la interfaz ni en integraciones.
+- Validar entradas y operaciones antes de persistir cambios.
+- Evitar cálculos monetarios con punto flotante binario sin una estrategia explícita de precisión.
+- No introducir servicios remotos, sincronización en la nube ni dependencias innecesarias.
+- Mantener el diseño extensible para incorporar conversión de monedas e historial en el futuro, sin implementar esas funciones ahora.
 
-## Integración con IA
-- Aplicar el principio de mínimo privilegio.
-- Separar operaciones de lectura y escritura.
-- Validar y registrar cambios.
-- Solicitar confirmación para modificaciones antes de aplicarlas, salvo que el usuario apruebe explícitamente otro comportamiento.
-- No exponer credenciales, secretos ni acceso irrestricto al sistema de archivos.
+## OpenCode
+
+- La primera integración prevista es un botón que abre una terminal externa en el directorio del proyecto. El usuario ejecutará `opencode` manualmente en esa terminal.
+- No construir por ahora un chat de IA embebido.
+- Abrir OpenCode en el directorio del proyecto permite trabajar sobre sus archivos, pero no implica acceso automático y controlado a los datos de la aplicación en ejecución.
+- Si más adelante OpenCode debe consultar o modificar datos financieros, esas operaciones deberán pasar por una interfaz controlada de la aplicación, con validaciones y permisos.
+- No permitir escritura directa e irrestricta sobre SQLite.
+- Las operaciones de escritura futuras deberán informar qué se modificará y aplicar la política de confirmación que se defina.
 
 ## Cambios en documentación
-Cuando una decisión sea confirmada:
+
+Cuando el usuario confirme una decisión:
 1. Actualizar `docs/decisiones.md`.
 2. Actualizar `docs/requisitos.md` o `docs/arquitectura.md` si corresponde.
-3. Mantener consistentes los documentos.
-4. No presentar propuestas del agente como decisiones del usuario.
+3. Mantener consistentes todos los documentos.
+4. No presentar propuestas del agente ni cálculos provisionales como decisiones confirmadas.
 
-## Estado actual
-El proyecto está en etapa de definición. No asumir que ya existe código ni comenzar la implementación salvo pedido explícito del usuario.
+## Estado del proyecto
+
+La base de requisitos y arquitectura de la primera versión está aprobada y documentada en la versión 0.2. El objetivo es construir una primera versión funcional y acotada. No ampliar el alcance ni implementar extensiones futuras sin autorización del usuario.
