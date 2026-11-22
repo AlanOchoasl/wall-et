@@ -91,17 +91,36 @@ El sistema SHALL almacenar y operar los importes monetarios sin pérdida de prec
 
 ### Requirement: Definir la fórmula de rendimiento de cauciones
 
-El sistema SHALL calcular el rendimiento bruto de una caución con una fórmula y una convención de días aprobadas explícitamente. Mientras esa decisión esté pendiente, la funcionalidad de rendimiento MUST permanecer deshabilitada y el sistema MUST NOT usar una fórmula provisional como si fuera definitiva.
+El sistema SHALL calcular el rendimiento bruto de una caución con una fórmula y una convención de días aprobadas explícitamente. Mientras esa decisión esté pendiente, la funcionalidad de rendimiento definitivo MUST permanecer deshabilitada y el sistema MUST NOT usar una fórmula provisional como si fuera definitiva.
 
-#### Scenario: Decisión pendiente
+#### Scenario: Decisión pendiente sin cálculo provisional
 
-- **WHEN** no existe una decisión aprobada sobre fórmula y convención de días
+- **WHEN** no existe una decisión aprobada sobre fórmula y convención de días ni una fórmula provisional aprobada
 - **THEN** el sistema no calcula rendimiento bruto y lo informa como no disponible
 
-#### Scenario: Fórmula aprobada
+#### Scenario: Fórmula definitiva aprobada
 
 - **WHEN** existe una decisión aprobada sobre fórmula y convención de días
-- **THEN** el sistema calcula el rendimiento bruto exclusivamente con esa fórmula
+- **THEN** el sistema calcula el rendimiento bruto exclusivamente con esa fórmula y lo presenta como disponible
+
+### Requirement: Aislar el cálculo provisional
+
+El sistema SHALL implementar cualquier cálculo provisional de demostración en un módulo separado de las reglas definitivas, de modo que pueda reemplazarse sin modificar la presentación ni duplicar lógica. Un resultado provisional MUST identificarse como tal en todos los lugares donde se muestre y MUST NOT usarse como veredicto definitivo ni presentarse como asesoramiento financiero. La fórmula provisional MUST contar con aprobación explícita antes de implementarse.
+
+#### Scenario: Sustitución del cálculo provisional
+
+- **WHEN** se aprueba la fórmula definitiva y se reemplaza el cálculo provisional
+- **THEN** la presentación y las reglas de servicios no requieren cambios para adoptar el cálculo definitivo
+
+#### Scenario: Etiquetado del resultado provisional
+
+- **WHEN** el sistema muestra un rendimiento o una cobertura obtenidos con el cálculo provisional
+- **THEN** el valor se identifica como provisional en la tabla y en el indicador correspondiente
+
+#### Scenario: Fórmula provisional no aprobada
+
+- **WHEN** no existe una fórmula provisional aprobada explícitamente
+- **THEN** el sistema no implementa ni muestra ningún cálculo provisional
 
 ### Requirement: Definir el tratamiento impositivo
 

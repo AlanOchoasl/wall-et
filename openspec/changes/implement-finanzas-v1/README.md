@@ -1,13 +1,13 @@
 # implement-finanzas-v1
 
-Especificación e implementación de la primera versión de la app de finanzas personales: servicios recurrentes mensuales en ARS e inversiones en cauciones.
+Especificación e implementación de la primera versión de la app de finanzas personales: servicios recurrentes mensuales en ARS e inversiones en cauciones, según la base v0.2 de `docs/` y `design.md`.
 
 ## Artefactos
 
-- `proposal.md`: motivación, alcance, capacidades y contradicciones detectadas.
+- `proposal.md`: motivación, alcance, capacidades y observaciones sobre los documentos de origen.
 - `specs/`: deltas de especificación por capacidad.
-- `design.md`: diseño técnico con el stack aprobado.
-- `tasks.md`: plan de 74 tareas en 11 fases, con dependencias, criterios de aceptación y requisitos.
+- `design.md`: diseño técnico con el stack aprobado (D-021).
+- `tasks.md`: plan de 76 tareas en 11 fases, con dependencias, criterios de aceptación y requisitos.
 
 ## Estado
 
@@ -16,5 +16,6 @@ Planificación completa y validada con OpenSpec 1.12.0 (esquema `spec-driven`). 
 ## Notas de flujo
 
 - Las especificaciones consolidadas en `openspec/specs/` se generan recién al archivar el cambio (`openspec archive`), como indica el flujo oficial. Hasta entonces, la fuente son los deltas de este cambio; duplicarlos ahora provocaría requisitos repetidos al archivar.
-- Las tareas de la sección 11 de `tasks.md` están bloqueadas por decisiones financieras pendientes y no deben ejecutarse.
-- Las contradicciones entre el pedido y `docs/` están registradas en `proposal.md` (sección "Contradicciones y supuestos detectados").
+- Las tareas de la sección 11 están bloqueadas por decisiones financieras pendientes y no deben ejecutarse.
+- El cálculo provisional de demostración está permitido por D-017, pero su fórmula no está definida: las tareas 11.1 y 11.2 quedan bloqueadas hasta que el usuario la apruebe.
+- Las observaciones sobre `docs/` y `design.md` están registradas en `proposal.md` (sección "Contradicciones, vacíos y supuestos detectados").

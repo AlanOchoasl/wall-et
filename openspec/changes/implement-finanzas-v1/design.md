@@ -4,11 +4,12 @@ Ver `proposal.md` para la motivación y las contradicciones detectadas. El repos
 
 Restricciones que condicionan el diseño:
 
-- Stack indicado como aprobado para esta propuesta: Tauri 2, React, TypeScript, Vite, Rust y SQLite.
+- Stack aprobado (D-021): Tauri 2, React, TypeScript, Vite, Rust y SQLite.
 - Primera versión en ARS, con servicios mensuales únicamente.
-- Varias reglas financieras están pendientes de aprobación: fórmula de rendimiento, convención de días, tratamiento impositivo, precisión y redondeo.
-- La identidad visual no está definida: no existe `design.md` en el repositorio.
-- La integración con OpenCode se limita a abrir una terminal externa.
+- Varias reglas financieras están pendientes de aprobación: fórmula definitiva de rendimiento, convención de días, tratamiento impositivo, precisión y redondeo.
+- Se permite un cálculo provisional de demostración (D-017), siempre identificado como no definitivo, aislado y reemplazable. Su fórmula todavía no está definida.
+- La identidad visual está definida en `design.md`: acento púrpura, glassmorphism moderado, tipografía Inter, tokens de color para tema claro y oscuro.
+- La integración con OpenCode se limita a abrir una terminal externa (D-019, D-020).
 
 ## Goals / Non-Goals
 
@@ -31,7 +32,7 @@ Restricciones que condicionan el diseño:
 
 ### D1. Tauri 2 como contenedor y Rust como backend autoritativo
 
-Se usa Tauri 2 para empaquetar la aplicación y exponer comandos locales. Rust concentra casos de uso, validaciones, reglas de negocio y acceso a SQLite.
+Se usa Tauri 2 para empaquetar la aplicación y exponer comandos locales, según el stack aprobado en D-021. Rust concentra casos de uso, validaciones, reglas de negocio y acceso a SQLite.
 
 Alternativa considerada: lógica de negocio en TypeScript. Se descarta porque duplicaría reglas entre interfaz e integraciones futuras y debilitaría el principio de fuente única de cálculo.
 
@@ -127,6 +128,7 @@ Notas:
 - `tax_minor` almacena el importe ingresado; su interpretación definitiva (importe absoluto o base para una alícuota) queda bloqueada hasta la decisión impositiva. Si la decisión exige una alícuota, se agregará una migración.
 - No se incorpora tabla de historial ni de auditoría en la primera versión.
 - La unicidad de una inversión por mes no se impone como restricción de esquema mientras no se decida; el caso de uso esperado es una inversión por mes.
+- Se conserva `currency_code` fijo en `"ARS"` aunque el modelo de `docs/arquitectura.md` §5 use `total_cost_ars` sin campo de moneda. Es una decisión técnica habilitada por §6 para evitar una migración cuando se incorpore la extensión futura de monedas; no habilita conversión en esta versión.
 
 ### D6. Importes monetarios
 
@@ -137,7 +139,9 @@ Notas:
 
 ### D7. Punto único para las decisiones financieras pendientes
 
-El dominio define un módulo de cálculos con funciones explícitas para rendimiento bruto, rendimiento neto y cobertura. Cada una devuelve un resultado con estado. Mientras falte la decisión, devuelve `no_disponible` con el motivo, sin fórmula alternativa.
+El dominio define un módulo de cálculos con funciones explícitas para rendimiento bruto, rendimiento neto y cobertura. Cada una devuelve un resultado con estado (`disponible`, `no_disponible`, `provisional`) y motivo.
+
+Mientras falte la decisión definitiva, devuelve `no_disponible`. Un cálculo provisional solo se habilita si el usuario aprueba su fórmula; se implementa en un módulo separado, se etiqueta como provisional y se reemplaza por el definitivo sin tocar la presentación ni la persistencia.
 
 Esto permite habilitar el cálculo definitivo cambiando un único módulo y sus pruebas, sin tocar la interfaz ni la persistencia.
 
@@ -166,21 +170,31 @@ Ambos niveles usan las mismas definiciones del dominio para evitar divergencias.
 
 ### D11. Tema y preferencias
 
-- El tema se implementa con variables CSS y una clase o atributo en el elemento raíz.
+- El tema se implementa con variables CSS y un atributo en el elemento raíz (`data-theme`), según los tokens de `design.md`.
 - La preferencia se guarda en `app_setting` y se lee al iniciar antes de renderizar las secciones.
 - Valor inicial: tema claro cuando no hay preferencia.
 
+### D12. Identidad visual y composición
+
+- Se adoptan los tokens de `design.md`: acento púrpura, superficies translúcidas con fallback sólido, tipografía Inter y cifras tabulares.
+- La composición usa barra superior con marca, selector de tema y acción "Abrir OpenCode"; navegación lateral limitada a Servicios e Inversiones.
+- Los colores semánticos se reservan para estados definidos (cobertura, error, congelado) y nunca comunican estado solo por color.
+- Los resultados provisionales se identifican con etiqueta textual, además del tratamiento visual.
+- `design.md` es guía de apariencia; no agrega controles ni funcionalidades.
+
 ## Risks / Trade-offs
 
-- **Decisiones financieras pendientes** → el rendimiento y la cobertura quedan sin veredicto real. Mitigación: módulo único con estado `no_disponible`, tareas bloqueadas separadas y pruebas que impidan presentar resultados inventados.
+- **Decisiones financieras pendientes** → el rendimiento y la cobertura definitivos quedan sin veredicto real. Mitigación: módulo único con estado `no_disponible`, cálculo provisional aislado y etiquetado, tareas bloqueadas separadas y pruebas que impidan presentar resultados inventados.
+- **Fórmula provisional no aprobada** → la tabla de inversiones puede quedar sin cifras de rendimiento. Mitigación: la tarea 11.1 debe resolverse antes de la demostración; el sistema muestra `no_disponible` mientras tanto.
 - **Precisión de TNA sin definir** → la escala de `tna_basis_points` puede requerir migración. Mitigación: definir la escala junto con la decisión de precisión antes de implementar el cálculo.
 - **Impuestos con semántica abierta** → el campo manual puede necesitar cambiar de importe a alícuota. Mitigación: aislar la conversión en el dominio y prever una migración.
-- **Tema claro/oscuro sin identidad visual definida** → riesgo de retrabajo. Mitigación: usar tokens de color mínimos y centralizados; reemplazarlos cuando exista `design.md`.
+- **Glassmorphism y legibilidad** → el blur puede reducir contraste o rendimiento. Mitigación: fallback sólido, contraste mínimo 4.5:1 y verificación en ambos temas.
 - **Congelamiento indefinido** → no cubre congelamientos por período si esa decisión cambia. Mitigación: modelo de estado simple y migración futura si se aprueban períodos.
 - **Apertura de terminal multiplataforma** → diferencias entre sistemas operativos. Mitigación: encapsular en un módulo y validar manualmente en Windows, que es el entorno actual.
 - **Sin backups en la primera versión** → pérdida de datos ante fallo. Mitigación: documentar la ubicación de la base y dejar la estrategia como tarea bloqueada.
 
 ## Open Questions
 
+- Fórmula o datos exactos del cálculo provisional de demostración. Bloquea las tareas 11.1 y 11.2; no cambia la estructura del diseño.
 - Directorio exacto que debe usarse como "directorio del proyecto" en una instalación empaquetada. Se asume el directorio desde el que se ejecuta la aplicación, configurable en un único punto.
 - Terminal concreta a abrir en Windows (por ejemplo, `cmd` o Windows Terminal). Se aísla en un módulo; no altera especificaciones ni tareas.

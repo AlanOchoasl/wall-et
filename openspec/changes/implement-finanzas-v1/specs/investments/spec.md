@@ -68,26 +68,36 @@ El sistema SHALL calcular los gastos del mes de cada inversión como la suma de 
 
 ### Requirement: Derivar el rendimiento bruto
 
-El sistema SHALL calcular el rendimiento bruto a partir del capital invertido, la TNA y el plazo en días, aplicando la fórmula y la convención de días que se aprueben en la decisión financiera correspondiente. Mientras esa decisión no esté aprobada, el sistema MUST NOT presentar un rendimiento bruto calculado y MUST mostrar el resultado como no disponible.
+El sistema SHALL calcular el rendimiento bruto a partir del capital invertido, la TNA y el plazo en días. Con la fórmula definitiva aprobada, MUST usar exclusivamente esa fórmula y su convención de días. Mientras la fórmula definitiva no esté aprobada, el sistema MAY mostrar un cálculo provisional de demostración solo si su fórmula fue aprobada explícitamente; ese resultado MUST identificarse como provisional y MUST NOT presentarse como definitivo. Sin fórmula provisional aprobada, el sistema MUST mostrar el rendimiento bruto como no disponible.
 
-#### Scenario: Fórmula pendiente de aprobación
+#### Scenario: Fórmula definitiva pendiente con cálculo provisional aprobado
 
-- **WHEN** la decisión sobre fórmula y convención de días no está aprobada
-- **THEN** la inversión muestra el rendimiento bruto como no disponible y no lo presenta como resultado definitivo
+- **WHEN** la fórmula definitiva no está aprobada y el usuario aprobó una fórmula provisional de demostración
+- **THEN** la inversión muestra el rendimiento bruto identificado como provisional y no como resultado definitivo
 
-#### Scenario: Recálculo al cambiar datos de origen
+#### Scenario: Fórmula definitiva pendiente sin cálculo provisional aprobado
 
-- **WHEN** la fórmula está aprobada y el usuario modifica el capital, la TNA o el plazo
-- **THEN** el sistema recalcula el rendimiento bruto con la fórmula aprobada
+- **WHEN** la fórmula definitiva no está aprobada y no existe una fórmula provisional aprobada
+- **THEN** la inversión muestra el rendimiento bruto como no disponible y no presenta ningún valor calculado
+
+#### Scenario: Fórmula definitiva aprobada
+
+- **WHEN** la fórmula definitiva está aprobada y el usuario modifica el capital, la TNA o el plazo
+- **THEN** el sistema recalcula el rendimiento bruto con la fórmula aprobada y lo presenta como disponible
 
 ### Requirement: Derivar el rendimiento neto
 
-El sistema SHALL calcular el rendimiento neto restando al rendimiento bruto los impuestos correspondientes al período, según el tratamiento impositivo que se apruebe. Mientras el tratamiento impositivo no esté aprobado, el sistema MUST NOT presentar un rendimiento neto calculado y MUST mostrar el resultado como no disponible. El valor de impuestos ingresado manualmente MUST conservarse como dato de origen.
+El sistema SHALL calcular el rendimiento neto restando al rendimiento bruto los impuestos correspondientes al período, según el tratamiento impositivo que se apruebe. Mientras el tratamiento impositivo no esté aprobado, el sistema MAY mostrar un rendimiento neto provisional solo si el cálculo provisional y el tratamiento aplicado fueron aprobados explícitamente; ese resultado MUST identificarse como provisional. Sin aprobación, el sistema MUST mostrar el rendimiento neto como no disponible. El valor de impuestos ingresado manualmente MUST conservarse como dato de origen.
 
-#### Scenario: Tratamiento impositivo pendiente
+#### Scenario: Tratamiento impositivo pendiente sin cálculo provisional aprobado
 
-- **WHEN** la decisión sobre el tratamiento impositivo no está aprobada
+- **WHEN** la decisión sobre el tratamiento impositivo no está aprobada y no existe un cálculo provisional aprobado
 - **THEN** la inversión muestra el rendimiento neto como no disponible
+
+#### Scenario: Rendimiento neto provisional
+
+- **WHEN** el tratamiento impositivo definitivo no está aprobado y existe un cálculo provisional aprobado
+- **THEN** la inversión muestra el rendimiento neto identificado como provisional
 
 #### Scenario: Conservación del impuesto ingresado
 
@@ -96,7 +106,7 @@ El sistema SHALL calcular el rendimiento neto restando al rendimiento bruto los 
 
 ### Requirement: Evaluar la cobertura del mes
 
-El sistema SHALL comparar el rendimiento neto con los gastos del mes. Si el rendimiento neto es mayor o igual que los gastos del mes, MUST mostrar el texto "¡Sí cubre!". Si es menor, MUST mostrar "Déficit de: $[importe faltante]" con el importe expresado en ARS. Si el rendimiento neto no está disponible, el sistema MUST mostrar el estado de cobertura como no disponible y MUST NOT emitir un veredicto.
+El sistema SHALL comparar el rendimiento neto con los gastos del mes. Si el rendimiento neto es mayor o igual que los gastos del mes, MUST mostrar el texto "¡Sí cubre!". Si es menor, MUST mostrar "Déficit de: $[importe faltante]" con el importe expresado en ARS. Cuando el rendimiento neto sea provisional, el veredicto MUST identificarse como provisional. Si el rendimiento neto no está disponible, el sistema MUST mostrar el estado de cobertura como no disponible y MUST NOT emitir un veredicto.
 
 #### Scenario: Cobertura suficiente
 
@@ -107,6 +117,11 @@ El sistema SHALL comparar el rendimiento neto con los gastos del mes. Si el rend
 
 - **WHEN** el rendimiento neto disponible es 4000,00 y los gastos del mes son 5500,00
 - **THEN** el sistema muestra "Déficit de: $1500,00"
+
+#### Scenario: Cobertura con rendimiento provisional
+
+- **WHEN** el rendimiento neto es provisional y alcanza los gastos del mes
+- **THEN** el sistema muestra "¡Sí cubre!" identificado como provisional
 
 #### Scenario: Cobertura no evaluable
 
@@ -157,8 +172,13 @@ El sistema SHALL mostrar las inversiones en una tabla donde cada fila representa
 
 #### Scenario: Fila con resultados no disponibles
 
-- **WHEN** existe una inversión con datos de origen válidos y las decisiones financieras están pendientes
+- **WHEN** existe una inversión con datos de origen válidos, las decisiones financieras están pendientes y no existe un cálculo provisional aprobado
 - **THEN** la fila muestra los datos de origen y muestra rendimiento bruto, rendimiento neto y cobertura como no disponibles
+
+#### Scenario: Fila con resultados provisionales
+
+- **WHEN** existe una inversión y hay un cálculo provisional aprobado pero no la fórmula definitiva
+- **THEN** la fila muestra los resultados identificados como provisionales y no como definitivos
 
 #### Scenario: Fila con datos de origen incompletos
 

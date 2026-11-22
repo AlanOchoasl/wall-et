@@ -8,7 +8,8 @@ El proyecto cuenta con requisitos, arquitectura y decisiones en etapa de definic
 - Se define el comportamiento observable de cinco capacidades: servicios, inversiones, cálculos financieros, preferencias/navegación y lanzador de terminal para OpenCode.
 - Se documenta el diseño técnico con el stack indicado como aprobado para esta propuesta: Tauri 2, React, TypeScript, Vite, Rust y SQLite.
 - Se produce un plan de tareas por fases, con dependencias, criterios de aceptación y trazabilidad a requisitos.
-- Se separan explícitamente las tareas bloqueadas por decisiones financieras pendientes (fórmula de rendimiento, convención de días, tratamiento impositivo, precisión y redondeo).
+- Se especifica un cálculo provisional de demostración, explícitamente etiquetado y aislado, condicionado a la aprobación de su fórmula; sin inventar reglas financieras.
+- Se separan explícitamente las tareas bloqueadas por decisiones financieras pendientes (fórmula provisional y definitiva, convención de días, tratamiento impositivo, precisión y redondeo).
 - No se implementa código en este cambio: solo se generan artefactos de planificación.
 
 ## Capabilities
@@ -30,15 +31,12 @@ Justificación de la separación: cada capacidad tiene un dueño de comportamien
 - Técnico (cuando se implemente): proyecto Tauri 2 + React + TypeScript + Vite, backend Rust, base SQLite local con migraciones.
 - Riesgo principal: varias tareas de cálculo quedan bloqueadas hasta que se aprueben las decisiones financieras pendientes.
 
-## Contradicciones y supuestos detectados
+## Contradicciones, vacíos y supuestos detectados
 
-Estas diferencias se documentan en lugar de resolverse por interpretación arbitraria:
+Los documentos v0.2 del repositorio (`requisitos`, `decisiones`, `arquitectura`, `design.md`) son la base de esta propuesta y no contradicen el pedido. Se registran estas observaciones:
 
-1. **Versión de requisitos.** El pedido indica que existe una versión 0.2 de `docs/requisitos.md` limitada a ARS y servicios mensuales, pero el archivo del repositorio es la versión 0.1 e incluye "Soporte de múltiples monedas". Esta propuesta sigue la delimitación indicada en el pedido (ARS, servicios mensuales) y no incorpora conversión multidivisa. Queda pendiente actualizar `docs/requisitos.md` a 0.2 para que el repositorio refleje esa delimitación.
-2. **Decisiones de moneda.** `docs/decisiones.md` D-004 confirma "contemplar múltiples monedas" con política pendiente. La primera versión especificada opera solo en ARS; la decisión D-004 se considera diferida a una versión futura y no se reincorpora como requisito de esta entrega.
-3. **Stack.** `docs/decisiones.md` lista Tauri 2, React/TypeScript/Vite, Rust y SQLite como propuestas P-001 a P-004 "pendientes de aprobación". El pedido los declara stack aprobado. Se documentan como aprobados para esta propuesta, sin modificar el registro de decisiones.
-4. **Identidad visual.** El pedido exige leer `design.md`, pero ese archivo no existe en el repositorio. No se inventa identidad visual: los requisitos de apariencia se limitan a tema claro/oscuro, legibilidad y navegación restringida. La identidad visual queda pendiente de un `design.md` aprobado.
-5. **OpenCode.** `docs/requisitos.md` RF-04 y D-013 contemplan integración futura con acceso a datos. El pedido reduce la primera versión a abrir una terminal externa donde el usuario ejecuta `opencode` manualmente. Esta propuesta especifica solo esa reducción y deja el acceso a datos fuera de alcance.
-6. **Congelamiento.** La cuestión pendiente 6 de `docs/decisiones.md` plantea congelamiento por mes o indefinido. El pedido lo define como indefinido hasta reactivación; se especifica así y se registra como decisión a formalizar en `docs/decisiones.md`.
-7. **Impuestos.** El pedido indica que los impuestos se ingresan manualmente, mientras que la cuestión pendiente 2 sigue abierta respecto de la regla o porcentaje aplicable. La especificación captura el dato manual y deja bloqueado su tratamiento de cálculo.
-8. **Supuestos menores** (a confirmar, sin impacto estructural): importes no negativos con hasta dos decimales; confirmación explícita antes de eliminar un servicio; tema claro como valor inicial si no hay preferencia guardada; una inversión por mes como caso de uso esperado, sin imponer unicidad mientras no se decida.
+1. **Cálculo provisional sin fórmula definida.** `docs/requisitos.md` §3 y D-017 permiten un cálculo o dato provisional de demostración, pero no definen su fórmula ni sus datos. Esta propuesta no inventa una regla: especifica que el cálculo provisional solo puede mostrarse si el usuario aprueba explícitamente su fórmula, siempre etiquetado como provisional y aislado de la implementación definitiva. Esa aprobación queda como tarea bloqueada (11.1).
+2. **Modelo de datos y moneda.** `docs/arquitectura.md` §5 modela `total_cost_ars` y no incluye un campo de moneda. El diseño de esta propuesta conserva un campo de moneda fijo en ARS para evitar una migración cuando se habilite la extensión futura, lo que §6 permite explícitamente ("mantener el diseño desacoplado para incorporar códigos de moneda"). No es una contradicción funcional.
+3. **D-015 y OpenCode.** `docs/decisiones.md` D-015 menciona que el usuario podrá actualizar precios mediante OpenCode cuando exista la integración. Esa integración está fuera del alcance (D-020); esta propuesta no la especifica.
+4. **Diseño visual.** `design.md` define identidad púrpura, glassmorphism moderado, tokens de color y tipografía Inter. Se toma exclusivamente como guía visual; no genera requisitos funcionales. La navegación se limita a Servicios e Inversiones y el botón de OpenCode se representa como apertura de terminal externa.
+5. **Supuestos menores** (a confirmar, sin impacto estructural): importes no negativos con hasta dos decimales; confirmación explícita antes de eliminar un servicio; tema claro como valor inicial si no hay preferencia guardada; una inversión por mes como caso de uso esperado, sin imponer unicidad mientras no se decida.
