@@ -126,6 +126,18 @@ impl Service {
         let total_cost = parse_total_cost(total_cost, self.currency())?;
         Self::from_parts(name, total_cost, shared_people_count, notes, self.status)
     }
+
+    pub fn freeze(&self) -> Self {
+        let mut frozen = self.clone();
+        frozen.status = ServiceStatus::Frozen;
+        frozen
+    }
+
+    pub fn reactivate(&self) -> Self {
+        let mut active = self.clone();
+        active.status = ServiceStatus::Active;
+        active
+    }
 }
 
 #[cfg(test)]
@@ -518,5 +530,49 @@ mod tests {
         assert_eq!(edited.status(), ServiceStatus::Frozen);
         assert_eq!(share.numerator_minor(), 400_000);
         assert_eq!(share.denominator(), 1);
+    }
+
+    #[test]
+    fn freeze_cambia_estado_y_conserva_datos() {
+        let service = Service::new_with_currency(
+            "Spotify",
+            "10000,00",
+            Currency::Usd,
+            4,
+            Some("familiar".to_string()),
+        )
+        .unwrap();
+
+        let frozen = service.freeze();
+
+        assert_eq!(frozen.status(), ServiceStatus::Frozen);
+        assert_eq!(frozen.name(), "Spotify");
+        assert_eq!(frozen.total_cost().minor_units(), 1_000_000);
+        assert_eq!(frozen.currency(), Currency::Usd);
+        assert_eq!(frozen.shared_people_count().get(), 4);
+        assert_eq!(frozen.notes(), Some("familiar"));
+        assert_eq!(service.status(), ServiceStatus::Active);
+    }
+
+    #[test]
+    fn reactivate_cambia_estado_y_conserva_datos() {
+        let service = Service::new_frozen_with_currency(
+            "Luz",
+            "9000,00",
+            Currency::Ars,
+            3,
+            Some("compartida".to_string()),
+        )
+        .unwrap();
+
+        let active = service.reactivate();
+
+        assert_eq!(active.status(), ServiceStatus::Active);
+        assert_eq!(active.name(), "Luz");
+        assert_eq!(active.total_cost().minor_units(), 900_000);
+        assert_eq!(active.currency(), Currency::Ars);
+        assert_eq!(active.shared_people_count().get(), 3);
+        assert_eq!(active.notes(), Some("compartida"));
+        assert_eq!(service.status(), ServiceStatus::Frozen);
     }
 }
