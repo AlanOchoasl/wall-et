@@ -170,6 +170,16 @@ where
     repository.list_frozen(connection)
 }
 
+pub fn list_active_services<R>(
+    connection: &Connection,
+    repository: &R,
+) -> Result<Vec<ServiceRecord>, DomainError>
+where
+    R: ServiceRepository + ?Sized,
+{
+    repository.list_active(connection)
+}
+
 pub fn get_service_totals<R>(
     connection: &Connection,
     repository: &R,
@@ -665,6 +675,37 @@ mod tests {
         expected.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
         let expected_ids: Vec<String> = expected.into_iter().map(|(_, id)| id).collect();
         assert_eq!(actual, expected_ids);
+    }
+
+    #[test]
+    fn listar_activos_devuelve_solo_registros_activos() {
+        let connection = database::open_in_memory().unwrap();
+        let active =
+            create_service(&connection, &REPOSITORY, ars_input("Activo", "100,00", 1)).unwrap();
+        let frozen = create_service(
+            &connection,
+            &REPOSITORY,
+            ars_input("Congelado", "200,00", 1),
+        )
+        .unwrap();
+        freeze_service(&connection, &REPOSITORY, frozen.id()).unwrap();
+
+        let records = list_active_services(&connection, &REPOSITORY).unwrap();
+
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].id().to_string(), active.id().to_string());
+        assert_eq!(records[0].service().status(), ServiceStatus::Active);
+    }
+
+    #[test]
+    fn listar_activos_sin_servicios_devuelve_lista_vacia() {
+        let connection = database::open_in_memory().unwrap();
+
+        assert!(
+            list_active_services(&connection, &REPOSITORY)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

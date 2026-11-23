@@ -31,7 +31,15 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::app_status::get_app_status
+            commands::app_status::get_app_status,
+            commands::services::create_service,
+            commands::services::update_service,
+            commands::services::delete_service,
+            commands::services::freeze_service,
+            commands::services::reactivate_service,
+            commands::services::list_frozen_services,
+            commands::services::list_active_services,
+            commands::services::get_service_totals
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
