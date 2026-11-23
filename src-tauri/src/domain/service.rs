@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 
 use crate::domain::error::DomainError;
-use crate::domain::money::{Currency, Money};
+use crate::domain::money::{Currency, ExactMoney, Money};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ServiceStatus {
@@ -76,6 +76,27 @@ impl Service {
 
     pub fn status(&self) -> ServiceStatus {
         self.status
+    }
+
+    pub fn my_share(&self) -> Result<ExactMoney, DomainError> {
+        self.total_cost
+            .checked_div_exact(u64::from(self.shared_people_count.get()))
+    }
+}
+
+#[cfg(test)]
+impl Service {
+    pub(crate) fn new_frozen_with_currency(
+        name: impl Into<String>,
+        total_cost: &str,
+        currency: Currency,
+        shared_people_count: u32,
+        notes: Option<String>,
+    ) -> Result<Self, DomainError> {
+        let mut service =
+            Self::new_with_currency(name, total_cost, currency, shared_people_count, notes)?;
+        service.status = ServiceStatus::Frozen;
+        Ok(service)
     }
 }
 
@@ -266,5 +287,53 @@ mod tests {
 
         assert_eq!(service.currency(), Currency::Usd);
         assert_eq!(service.total_cost().currency(), Currency::Usd);
+    }
+
+    #[test]
+    fn mi_parte_divide_10000_entre_4() {
+        let service = Service::new("Spotify", "10000,00", 4, None).unwrap();
+        let share = service.my_share().unwrap();
+
+        assert_eq!(share.numerator_minor(), 250_000);
+        assert_eq!(share.denominator(), 1);
+        assert_eq!(share.currency(), Currency::Ars);
+    }
+
+    #[test]
+    fn mi_parte_divide_15000_entre_3() {
+        let service = Service::new("Netflix", "15000,00", 3, None).unwrap();
+        let share = service.my_share().unwrap();
+
+        assert_eq!(share.numerator_minor(), 500_000);
+        assert_eq!(share.denominator(), 1);
+    }
+
+    #[test]
+    fn mi_parte_conserva_fraccion_exacta() {
+        let service = Service::new("Luz", "10000,00", 3, None).unwrap();
+        let share = service.my_share().unwrap();
+
+        assert_eq!(share.numerator_minor(), 1_000_000);
+        assert_eq!(share.denominator(), 3);
+    }
+
+    #[test]
+    fn mi_parte_conserva_la_moneda_seleccionada() {
+        let service =
+            Service::new_with_currency("Netflix", "9,99", Currency::Usd, 3, None).unwrap();
+        let share = service.my_share().unwrap();
+
+        assert_eq!(share.currency(), Currency::Usd);
+    }
+
+    #[test]
+    fn mi_parte_funciona_para_servicio_congelado() {
+        let service =
+            Service::new_frozen_with_currency("Luz", "9000,00", Currency::Ars, 3, None).unwrap();
+        let share = service.my_share().unwrap();
+
+        assert_eq!(service.status(), ServiceStatus::Frozen);
+        assert_eq!(share.numerator_minor(), 300_000);
+        assert_eq!(share.denominator(), 1);
     }
 }
