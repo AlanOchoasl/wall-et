@@ -39,6 +39,31 @@ pub struct UpdateInvestmentInput {
     pub taxes: String,
 }
 
+pub fn prepare_create_investment(input: CreateInvestmentInput) -> Result<Investment, DomainError> {
+    Investment::new_with_currency(
+        input.month.as_str(),
+        input.capital.as_str(),
+        input.currency,
+        input.tna.as_str(),
+        input.term_days.as_str(),
+        input.taxes.as_str(),
+    )
+}
+
+pub fn prepare_update_investment(
+    current: InvestmentRecord,
+    input: UpdateInvestmentInput,
+) -> Result<Investment, DomainError> {
+    Investment::new_with_currency(
+        input.month.as_str(),
+        input.capital.as_str(),
+        current.investment().currency(),
+        input.tna.as_str(),
+        input.term_days.as_str(),
+        input.taxes.as_str(),
+    )
+}
+
 pub fn create_investment<R>(
     connection: &Connection,
     repository: &R,
@@ -47,15 +72,7 @@ pub fn create_investment<R>(
 where
     R: InvestmentRepository + ?Sized,
 {
-    let investment = Investment::new_with_currency(
-        input.month.as_str(),
-        input.capital.as_str(),
-        input.currency,
-        input.tna.as_str(),
-        input.term_days.as_str(),
-        input.taxes.as_str(),
-    )?;
-
+    let investment = prepare_create_investment(input)?;
     repository.insert(connection, &investment)
 }
 
@@ -69,15 +86,7 @@ where
     R: InvestmentRepository + ?Sized,
 {
     let current = repository.get(connection, id)?;
-    let replacement = Investment::new_with_currency(
-        input.month.as_str(),
-        input.capital.as_str(),
-        current.investment().currency(),
-        input.tna.as_str(),
-        input.term_days.as_str(),
-        input.taxes.as_str(),
-    )?;
-
+    let replacement = prepare_update_investment(current, input)?;
     repository.update(connection, id, &replacement)
 }
 

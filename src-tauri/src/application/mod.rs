@@ -1,5 +1,7 @@
 pub mod app_status;
 pub mod error;
+pub mod investment_dtos;
+pub mod investment_queries;
 pub mod investment_repository;
 pub mod investment_use_cases;
 pub mod monthly_expenses;

@@ -61,6 +61,75 @@ export type ServiceTotalsDto = {
   usd: CurrencyServiceTotalsDto;
 };
 
+export type CalculationStatusDto =
+  | "disponible"
+  | "provisional"
+  | "no_disponible";
+
+export type CalculationReasonDto =
+  | "pending_gross_yield_formula"
+  | "pending_net_yield_treatment"
+  | "pending_net_yield"
+  | "approved_demo_pv01"
+  | "approved_demo_pv02"
+  | "approved_demo_pv03";
+
+export type FinancialResultDto<T> = {
+  status: CalculationStatusDto;
+  reason: CalculationReasonDto | null;
+  value: T | null;
+};
+
+export type FinancialRoutesDto<T> = {
+  definitive: FinancialResultDto<T>;
+  provisional: FinancialResultDto<T>;
+};
+
+export type CoverageOutcomeDto =
+  | { outcome: "covered" }
+  | { outcome: "deficit"; amount: ExactMoneyDto };
+
+export type InvestmentRecordDto = {
+  id: string;
+  month: string;
+  currencyCode: CurrencyCode;
+  capital: MoneyDto;
+  tna: string;
+  termDays: number;
+  taxes: MoneyDto;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InvestmentDerivedDto = {
+  monthlyExpenses: ExactMoneyDto;
+  grossYield: FinancialRoutesDto<ExactMoneyDto>;
+  netYield: FinancialRoutesDto<ExactMoneyDto>;
+  coverage: FinancialRoutesDto<CoverageOutcomeDto>;
+};
+
+export type InvestmentSummaryDto = {
+  record: InvestmentRecordDto;
+  derived: InvestmentDerivedDto;
+};
+
+export type CreateInvestmentInputDto = {
+  month: string;
+  currencyCode: CurrencyCode;
+  capital: string;
+  tna: string;
+  termDays: string;
+  taxes: string;
+};
+
+export type UpdateInvestmentInputDto = {
+  month: string;
+  capital: string;
+  tna: string;
+  termDays: string;
+  taxes: string;
+};
+
 export type AppStatus = {
   appName: string;
   version: string;
@@ -116,4 +185,25 @@ export function listActiveServices(): Promise<ServiceRecordDto[]> {
 
 export function getServiceTotals(): Promise<ServiceTotalsDto> {
   return invokeCommand<ServiceTotalsDto>("get_service_totals");
+}
+
+export function createInvestment(
+  input: CreateInvestmentInputDto,
+): Promise<InvestmentSummaryDto> {
+  return invokeCommand<InvestmentSummaryDto>("create_investment", { input });
+}
+
+export function updateInvestment(
+  id: string,
+  input: UpdateInvestmentInputDto,
+): Promise<InvestmentSummaryDto> {
+  return invokeCommand<InvestmentSummaryDto>("update_investment", { id, input });
+}
+
+export function listInvestmentsByMonth(
+  month: string,
+): Promise<InvestmentSummaryDto[]> {
+  return invokeCommand<InvestmentSummaryDto[]>("list_investments_by_month", {
+    month,
+  });
 }
