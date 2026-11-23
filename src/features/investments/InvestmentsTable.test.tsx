@@ -207,17 +207,17 @@ describe("InvestmentsTable", () => {
     expect(table.getByText("ARS 5500,00")).toBeInTheDocument();
     expect(
       table.getByText(
-        "Definitivo: No disponible · Provisional: ARS 365,00 (provisional)",
+        "Definitivo: no disponible · Provisional: ARS 365,00 (PV-01 · Provisional / demostración)",
       ),
     ).toBeInTheDocument();
     expect(
       table.getByText(
-        "Definitivo: No disponible · Provisional: ARS -100,00 (provisional)",
+        "Definitivo: no disponible · Provisional: ARS -100,00 (PV-02 · Provisional / demostración)",
       ),
     ).toBeInTheDocument();
     expect(
       table.getByText(
-        "Definitivo: No disponible · Provisional: Déficit: ARS 1500,00 (provisional)",
+        "Definitivo: no disponible · Provisional: Déficit: ARS 1500,00 (PV-03 · Provisional / demostración)",
       ),
     ).toBeInTheDocument();
     expect(
@@ -231,6 +231,42 @@ describe("InvestmentsTable", () => {
       ),
     ).toBeInTheDocument();
     expect(table.queryByText(/Definitivo: (ARS|USD) 0,00/)).toBeNull();
+  });
+
+  it("etiqueta PV-01 a PV-03 como provisionales y mantiene la ruta definitiva no disponible", () => {
+    render(<InvestmentsTable investments={[arsInvestment]} />);
+
+    const table = within(
+      screen.getByRole("table", { name: "Inversiones" }),
+    );
+
+    expect(
+      table.getByText(
+        /Definitivo: no disponible · Provisional: ARS 365,00/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      table.getByText(
+        /Definitivo: no disponible · Provisional: ARS -100,00/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      table.getByText(
+        /Definitivo: no disponible · Provisional: Déficit: ARS 1500,00/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      table.getByText(/PV-01 · Provisional \/ demostración/),
+    ).toBeInTheDocument();
+    expect(
+      table.getByText(/PV-02 · Provisional \/ demostración/),
+    ).toBeInTheDocument();
+    expect(
+      table.getByText(/PV-03 · Provisional \/ demostración/),
+    ).toBeInTheDocument();
+    expect(table.queryByText(/^Definitivo: (?!no disponible)/)).toBeNull();
+    expect(table.queryByText(/¡Sí cubre!/)).toBeNull();
+    expect(table.queryByText(/Déficit de:/)).toBeNull();
   });
 
   it("no permite editar los resultados derivados", () => {
@@ -258,7 +294,7 @@ describe("InvestmentsTable", () => {
     ).toHaveLength(0);
     expect(
       within(table).getByText(
-        "Definitivo: No disponible · Provisional: ARS 365,00 (provisional)",
+        "Definitivo: no disponible · Provisional: ARS 365,00 (PV-01 · Provisional / demostración)",
       ),
     ).toBeInTheDocument();
   });

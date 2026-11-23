@@ -28,7 +28,7 @@ describe("formatTna", () => {
 });
 
 describe("formatFinancialResult", () => {
-  it("incluye el estado en resultados disponibles y provisionales", () => {
+  it("incluye el estado en resultados disponibles", () => {
     expect(
       formatFinancialResult(
         {
@@ -39,16 +39,23 @@ describe("formatFinancialResult", () => {
         formatExactMoney,
       ),
     ).toBe("ARS 365,00 (disponible)");
+  });
+
+  it.each([
+    ["approved_demo_pv01", "PV-01 · Provisional / demostración"],
+    ["approved_demo_pv02", "PV-02 · Provisional / demostración"],
+    ["approved_demo_pv03", "PV-03 · Provisional / demostración"],
+  ] as const)("identifica %s como %s", (reason, label) => {
     expect(
       formatFinancialResult(
         {
           status: "provisional",
-          reason: "approved_demo_pv01",
+          reason,
           value: exact("36500", "1", "ARS"),
         },
         formatExactMoney,
       ),
-    ).toBe("ARS 365,00 (provisional)");
+    ).toBe(`ARS 365,00 (${label})`);
   });
 
   it("muestra no disponible cuando no hay valor o la ruta está bloqueada", () => {
@@ -61,13 +68,26 @@ describe("formatFinancialResult", () => {
         },
         formatExactMoney,
       ),
-    ).toBe("No disponible");
+    ).toBe("no disponible");
     expect(
       formatFinancialResult(
         { status: "disponible", reason: null, value: null },
         formatExactMoney,
       ),
-    ).toBe("No disponible");
+    ).toBe("no disponible");
+  });
+
+  it("conserva moneda y fracción exacta sin convertir ni redondear", () => {
+    expect(
+      formatFinancialResult(
+        {
+          status: "provisional",
+          reason: "approved_demo_pv01",
+          value: exact("300", "3", "USD"),
+        },
+        formatExactMoney,
+      ),
+    ).toBe("USD 3,00 ÷ 3 (PV-01 · Provisional / demostración)");
   });
 });
 
@@ -87,7 +107,7 @@ describe("formatFinancialRoutes", () => {
     };
 
     expect(formatFinancialRoutes(routes, formatExactMoney)).toBe(
-      "Definitivo: No disponible · Provisional: ARS 365,00 ÷ 3 (provisional)",
+      "Definitivo: no disponible · Provisional: ARS 365,00 ÷ 3 (PV-01 · Provisional / demostración)",
     );
   });
 });
@@ -127,7 +147,7 @@ describe("formatCoverageRoutes", () => {
     };
 
     expect(formatCoverageRoutes(routes)).toBe(
-      "Definitivo: No disponible · Provisional: Déficit: ARS 1500,00 (provisional)",
+      "Definitivo: no disponible · Provisional: Déficit: ARS 1500,00 (PV-03 · Provisional / demostración)",
     );
   });
 });
