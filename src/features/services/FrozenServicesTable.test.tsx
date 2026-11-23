@@ -42,6 +42,7 @@ describe("FrozenServicesTable", () => {
         services={[arsService, usdService]}
         reactivatingId={null}
         onReactivate={vi.fn()}
+        onDelete={vi.fn()}
       />,
     );
 
@@ -61,6 +62,7 @@ describe("FrozenServicesTable", () => {
         services={[arsService, usdService]}
         reactivatingId={null}
         onReactivate={vi.fn()}
+        onDelete={vi.fn()}
       />,
     );
 
@@ -83,6 +85,7 @@ describe("FrozenServicesTable", () => {
         services={[arsService, usdService]}
         reactivatingId={null}
         onReactivate={onReactivate}
+        onDelete={vi.fn()}
       />,
     );
 
@@ -103,6 +106,7 @@ describe("FrozenServicesTable", () => {
         services={[arsService, usdService]}
         reactivatingId={arsService.id}
         onReactivate={vi.fn()}
+        onDelete={vi.fn()}
       />,
     );
 
@@ -116,17 +120,54 @@ describe("FrozenServicesTable", () => {
     expect(screen.getByText("Reactivando…")).toBeInTheDocument();
   });
 
-  it("no muestra acciones de congelación ni eliminación", () => {
+  it("asocia la acción Eliminar con el servicio de cada fila", () => {
+    const onDelete = vi.fn();
+
+    render(
+      <FrozenServicesTable
+        services={[arsService, usdService]}
+        reactivatingId={null}
+        onReactivate={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+
+    const buttons = screen.getAllByRole("button", { name: /^Eliminar / });
+    expect(buttons).toHaveLength(2);
+    expect(buttons[0]).toHaveAccessibleName("Eliminar Luz");
+    expect(buttons[1]).toHaveAccessibleName("Eliminar Netflix");
+
+    fireEvent.click(buttons[1]);
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith(usdService);
+  });
+
+  it("bloquea la eliminación mientras hay una reactivación en curso", () => {
+    render(
+      <FrozenServicesTable
+        services={[arsService]}
+        reactivatingId={arsService.id}
+        onReactivate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Eliminar Luz" })).toBeDisabled();
+  });
+
+  it("no muestra acciones de congelación", () => {
     render(
       <FrozenServicesTable
         services={[arsService]}
         reactivatingId={null}
         onReactivate={vi.fn()}
+        onDelete={vi.fn()}
       />,
     );
 
     expect(
-      screen.queryByRole("button", { name: /congelar|eliminar/i }),
+      screen.queryByRole("button", { name: /congelar/i }),
     ).not.toBeInTheDocument();
   });
 });

@@ -9,11 +9,13 @@ import {
 type ActiveServicesTableProps = {
   services: ServiceRecordDto[];
   onEdit: (service: ServiceRecordDto) => void;
+  onDelete: (service: ServiceRecordDto) => void;
 };
 
 export function ActiveServicesTable({
   services,
   onEdit,
+  onDelete,
 }: ActiveServicesTableProps) {
   return (
     <div className="services-table-scroll">
@@ -47,14 +49,24 @@ export function ActiveServicesTable({
               <td>{formatNotes(service.notes)}</td>
               <td>{formatServiceStatus(service.status)}</td>
               <td>
-                <button
-                  type="button"
-                  className="button button--secondary button--compact"
-                  aria-label={`Editar ${service.name}`}
-                  onClick={() => onEdit(service)}
-                >
-                  Editar
-                </button>
+                <div className="services-table__actions">
+                  <button
+                    type="button"
+                    className="button button--secondary button--compact"
+                    aria-label={`Editar ${service.name}`}
+                    onClick={() => onEdit(service)}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    className="button button--danger button--compact"
+                    aria-label={`Eliminar ${service.name}`}
+                    onClick={() => onDelete(service)}
+                  >
+                    Eliminar
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

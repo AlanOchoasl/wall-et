@@ -121,6 +121,11 @@ body {
   text-align: right;
 }
 
+.services-table__actions {
+  display: flex;
+  gap: 8px;
+}
+
 .services-screen__header {
   display: flex;
   align-items: center;
@@ -174,6 +179,11 @@ body {
   border-color: rgba(127, 127, 127, 0.4);
   background: transparent;
   color: inherit;
+}
+
+.button--danger {
+  background: #c93636;
+  color: #fff;
 }
 
 .button--compact {
@@ -272,6 +282,10 @@ body {
 @media (prefers-color-scheme: dark) {
   .button--primary {
     background: #8a62ff;
+  }
+
+  .button--danger {
+    background: #ef4444;
   }
 
   .services-view-switch .button[aria-pressed="true"] {

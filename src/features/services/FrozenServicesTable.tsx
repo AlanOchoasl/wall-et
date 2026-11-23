@@ -10,12 +10,14 @@ type FrozenServicesTableProps = {
   services: ServiceRecordDto[];
   reactivatingId: string | null;
   onReactivate: (service: ServiceRecordDto) => void;
+  onDelete: (service: ServiceRecordDto) => void;
 };
 
 export function FrozenServicesTable({
   services,
   reactivatingId,
   onReactivate,
+  onDelete,
 }: FrozenServicesTableProps) {
   return (
     <div className="services-table-scroll">
@@ -53,16 +55,27 @@ export function FrozenServicesTable({
               <td>{formatNotes(service.notes)}</td>
               <td>{formatServiceStatus(service.status)}</td>
               <td>
-                <button
-                  type="button"
-                  className="button button--secondary button--compact"
-                  aria-label={`Reactivar ${service.name}`}
-                  aria-busy={reactivatingId === service.id ? "true" : undefined}
-                  disabled={reactivatingId !== null}
-                  onClick={() => onReactivate(service)}
-                >
-                  {reactivatingId === service.id ? "Reactivando…" : "Reactivar"}
-                </button>
+                <div className="services-table__actions">
+                  <button
+                    type="button"
+                    className="button button--secondary button--compact"
+                    aria-label={`Reactivar ${service.name}`}
+                    aria-busy={reactivatingId === service.id ? "true" : undefined}
+                    disabled={reactivatingId !== null}
+                    onClick={() => onReactivate(service)}
+                  >
+                    {reactivatingId === service.id ? "Reactivando…" : "Reactivar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="button button--danger button--compact"
+                    aria-label={`Eliminar ${service.name}`}
+                    disabled={reactivatingId !== null}
+                    onClick={() => onDelete(service)}
+                  >
+                    Eliminar
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

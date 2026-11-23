@@ -39,7 +39,11 @@ const usdService: ServiceRecordDto = {
 describe("ActiveServicesTable", () => {
   it("muestra los encabezados con semántica de columna", () => {
     render(
-      <ActiveServicesTable services={[arsService]} onEdit={vi.fn()} />,
+      <ActiveServicesTable
+        services={[arsService]}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
     );
 
     const table = screen.getByRole("table", { name: "Servicios activos" });
@@ -64,6 +68,7 @@ describe("ActiveServicesTable", () => {
       <ActiveServicesTable
         services={[arsService, usdService]}
         onEdit={vi.fn()}
+        onDelete={vi.fn()}
       />,
     );
 
@@ -81,6 +86,7 @@ describe("ActiveServicesTable", () => {
       <ActiveServicesTable
         services={[arsService, usdService]}
         onEdit={vi.fn()}
+        onDelete={vi.fn()}
       />,
     );
 
@@ -103,6 +109,7 @@ describe("ActiveServicesTable", () => {
       <ActiveServicesTable
         services={[arsService, usdService]}
         onEdit={onEdit}
+        onDelete={vi.fn()}
       />,
     );
 
@@ -116,13 +123,38 @@ describe("ActiveServicesTable", () => {
     expect(onEdit).toHaveBeenCalledWith(usdService);
   });
 
-  it("no muestra acciones de congelación, reactivación ni eliminación", () => {
+  it("asocia la acción Eliminar con el servicio de cada fila", () => {
+    const onDelete = vi.fn();
+
     render(
-      <ActiveServicesTable services={[arsService]} onEdit={vi.fn()} />,
+      <ActiveServicesTable
+        services={[arsService, usdService]}
+        onEdit={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+
+    const deleteButtons = screen.getAllByRole("button", { name: /^Eliminar / });
+    expect(deleteButtons).toHaveLength(2);
+    expect(deleteButtons[0]).toHaveAccessibleName("Eliminar Luz");
+    expect(deleteButtons[1]).toHaveAccessibleName("Eliminar Netflix");
+
+    fireEvent.click(deleteButtons[1]);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith(usdService);
+  });
+
+  it("no muestra acciones de congelación ni reactivación", () => {
+    render(
+      <ActiveServicesTable
+        services={[arsService]}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
     );
 
     expect(
-      screen.queryByRole("button", { name: /congelar|reactivar|eliminar/i }),
+      screen.queryByRole("button", { name: /congelar|reactivar/i }),
     ).not.toBeInTheDocument();
   });
 });

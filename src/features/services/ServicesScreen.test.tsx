@@ -17,6 +17,7 @@ import {
   listFrozenServices,
   reactivateService,
   updateService,
+  type DeleteServiceResultDto,
   type ServiceRecordDto,
   type ServiceTotalsDto,
 } from "../../shared/api";
@@ -33,6 +34,7 @@ vi.mock("../../shared/api", () => ({
   updateService: vi.fn(),
 }));
 
+const mockedDeleteService = vi.mocked(deleteService);
 const mockedGetServiceTotals = vi.mocked(getServiceTotals);
 const mockedListActiveServices = vi.mocked(listActiveServices);
 const mockedListFrozenServices = vi.mocked(listFrozenServices);
@@ -166,9 +168,19 @@ function openFrozenView() {
   fireEvent.click(screen.getByRole("button", { name: "Congelados" }));
 }
 
+function openDeleteDialog(serviceName: string) {
+  fireEvent.click(screen.getByRole("button", { name: `Eliminar ${serviceName}` }));
+
+  return screen.getByRole("dialog", { name: "Eliminar servicio" });
+}
+
 describe("ServicesScreen", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockedDeleteService.mockResolvedValue({
+      outcome: "deleted",
+      id: service.id,
+    });
     mockedGetServiceTotals.mockResolvedValue(zeroTotals);
     mockedListActiveServices.mockResolvedValue([service]);
     mockedListFrozenServices.mockResolvedValue([]);
@@ -732,5 +744,180 @@ describe("ServicesScreen", () => {
     expect(
       within(totalsRegion()).queryByText("ARS 100,00"),
     ).not.toBeInTheDocument();
+  });
+
+  it("cancela la eliminación de un servicio activo sin modificar datos ni totales", async () => {
+    mockedGetServiceTotals.mockResolvedValue(totalsWithActiveServices);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+    expect(
+      await within(totalsRegion()).findByText("ARS 100,00"),
+    ).toBeInTheDocument();
+
+    const dialog = openDeleteDialog("Luz");
+    expect(dialog).toHaveTextContent("Luz");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mockedDeleteService).not.toHaveBeenCalled();
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("table", { name: "Servicios activos" }),
+    ).toBeInTheDocument();
+    expect(within(totalsRegion()).getByText("ARS 100,00")).toBeInTheDocument();
+  });
+
+  it("confirma la eliminación de un servicio activo y recarga lista y totales", async () => {
+    mockedListActiveServices
+      .mockResolvedValueOnce([service])
+      .mockResolvedValueOnce([]);
+    mockedGetServiceTotals
+      .mockResolvedValueOnce(totalsWithActiveServices)
+      .mockResolvedValueOnce(zeroTotals);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+    expect(
+      await within(totalsRegion()).findByText("ARS 100,00"),
+    ).toBeInTheDocument();
+
+    const dialog = openDeleteDialog("Luz");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+
+    await waitFor(() => {
+      expect(mockedDeleteService).toHaveBeenCalledWith(service.id, true);
+    });
+    expect(await screen.findByText("No hay servicios activos.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(2);
+    expect(
+      await within(totalsRegion()).findAllByText("ARS 0,00"),
+    ).toHaveLength(2);
+  });
+
+  it("cancela la eliminación de un servicio congelado sin recargar listas ni totales", async () => {
+    mockedListFrozenServices.mockResolvedValue([frozenService]);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+
+    const dialog = openDeleteDialog("Netflix");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mockedDeleteService).not.toHaveBeenCalled();
+    expect(mockedListFrozenServices).toHaveBeenCalledTimes(1);
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("table", { name: "Servicios congelados" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Netflix")).toBeInTheDocument();
+  });
+
+  it("confirma la eliminación de un servicio congelado sin recalcular totales", async () => {
+    mockedListFrozenServices
+      .mockResolvedValueOnce([frozenService])
+      .mockResolvedValueOnce([]);
+    mockedGetServiceTotals.mockResolvedValue(totalsWithActiveServices);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+
+    const dialog = openDeleteDialog("Netflix");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+
+    await waitFor(() => {
+      expect(mockedDeleteService).toHaveBeenCalledWith(frozenService.id, true);
+    });
+    expect(
+      await screen.findByText("No hay servicios congelados."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mockedListFrozenServices).toHaveBeenCalledTimes(2);
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(1);
+  });
+
+  it("muestra errores de eliminación en el diálogo y conserva la fila", async () => {
+    mockedDeleteService.mockRejectedValue(
+      new Error("sin conexión al eliminar"),
+    );
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    const dialog = openDeleteDialog("Luz");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "sin conexión al eliminar",
+    );
+    expect(
+      screen.getByRole("table", { name: "Servicios activos" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Eliminar Luz" }),
+    ).toBeInTheDocument();
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(1);
+  });
+
+  it("cierra el diálogo sin recargar cuando el backend informa cancelled", async () => {
+    mockedDeleteService.mockResolvedValue({
+      outcome: "cancelled",
+      id: service.id,
+    });
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    const dialog = openDeleteDialog("Luz");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(mockedDeleteService).toHaveBeenCalledWith(service.id, true);
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(1);
+  });
+
+  it("evita dobles eliminaciones durante el envío", async () => {
+    const pending = deferred<DeleteServiceResultDto>();
+    mockedDeleteService.mockReturnValue(pending.promise);
+    mockedListActiveServices
+      .mockResolvedValueOnce([service])
+      .mockResolvedValueOnce([]);
+    mockedGetServiceTotals
+      .mockResolvedValueOnce(zeroTotals)
+      .mockResolvedValueOnce(zeroTotals);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    const dialog = openDeleteDialog("Luz");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminando…" }),
+    );
+
+    expect(mockedDeleteService).toHaveBeenCalledTimes(1);
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      pending.resolve({ outcome: "deleted", id: service.id });
+    });
+    await waitFor(() => {
+      expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
+    });
   });
 });

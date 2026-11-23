@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  deleteService,
   getServiceTotals,
   listActiveServices,
   listFrozenServices,
@@ -9,6 +10,7 @@ import {
   type ServiceTotalsDto,
 } from "../../shared/api";
 import { ActiveServicesTable } from "./ActiveServicesTable";
+import { ServiceDeleteConfirmationModal } from "./ServiceDeleteConfirmationModal";
 import { FrozenServicesTable } from "./FrozenServicesTable";
 import { ServiceFormModal } from "./ServiceFormModal";
 import { ServiceTotalsSummary } from "./ServiceTotalsSummary";
@@ -39,7 +41,13 @@ export function ServicesScreen() {
   const [reloadToken, setReloadToken] = useState(0);
   const [frozenToken, setFrozenToken] = useState(0);
   const [reactivatingId, setReactivatingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ServiceRecordDto | null>(
+    null,
+  );
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const pendingReactivation = useRef<ServiceRecordDto | null>(null);
+  const deleteSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (view !== "active") {
@@ -222,6 +230,68 @@ export function ServicesScreen() {
     setReloadToken((token) => token + 1);
   }
 
+  function handleDeleteRequest(service: ServiceRecordDto) {
+    setDeleteTarget(service);
+    setDeleteError(null);
+    setError(null);
+  }
+
+  function handleDeleteCancel() {
+    if (deleteSubmittingRef.current) {
+      return;
+    }
+
+    setDeleteTarget(null);
+    setDeleteError(null);
+  }
+
+  async function handleDeleteConfirm() {
+    const target = deleteTarget;
+
+    if (!target || deleteSubmittingRef.current) {
+      return;
+    }
+
+    deleteSubmittingRef.current = true;
+    setDeletingId(target.id);
+    setDeleteError(null);
+    setError(null);
+
+    try {
+      const result = await deleteService(target.id, true);
+
+      if (result.outcome === "cancelled") {
+        setDeleteTarget(null);
+        return;
+      }
+
+      if (result.outcome !== "deleted") {
+        setDeleteError(`No se pudo eliminar el servicio ${target.name}.`);
+        return;
+      }
+
+      setDeleteTarget(null);
+      setDeleteError(null);
+
+      if (target.status === "frozen") {
+        setFrozenServices(null);
+        setFrozenToken((token) => token + 1);
+      } else {
+        setActiveServices(null);
+        setTotals(null);
+        setTotalsError(null);
+        setReloadToken((token) => token + 1);
+      }
+    } catch (reason: unknown) {
+      setDeleteError(
+        errorMessage(reason, `No se pudo eliminar el servicio ${target.name}.`),
+      );
+    } finally {
+      setDeletingId(null);
+      deleteSubmittingRef.current = false;
+    }
+  }
+
   const showingFrozen = view === "frozen";
   const services = showingFrozen ? frozenServices : activeServices;
   const loadingAfterReactivation = reactivatingId !== null && !showingFrozen;
@@ -290,11 +360,13 @@ export function ServicesScreen() {
             services={services}
             reactivatingId={reactivatingId}
             onReactivate={handleReactivate}
+            onDelete={handleDeleteRequest}
           />
         ) : (
           <ActiveServicesTable
             services={services}
             onEdit={(service) => setModal({ mode: "edit", service })}
+            onDelete={handleDeleteRequest}
           />
         )
       ) : null}
@@ -305,6 +377,17 @@ export function ServicesScreen() {
           initialService={modal.mode === "edit" ? modal.service : undefined}
           onClose={() => setModal(null)}
           onSaved={handleSaved}
+        />
+      ) : null}
+
+      {deleteTarget ? (
+        <ServiceDeleteConfirmationModal
+          key={deleteTarget.id}
+          service={deleteTarget}
+          error={deleteError}
+          busy={deletingId !== null}
+          onCancel={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
         />
       ) : null}
     </section>
