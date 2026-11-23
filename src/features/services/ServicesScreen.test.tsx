@@ -1,4 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -11,6 +18,7 @@ import {
   reactivateService,
   updateService,
   type ServiceRecordDto,
+  type ServiceTotalsDto,
 } from "../../shared/api";
 import { ServicesScreen } from "./ServicesScreen";
 
@@ -25,6 +33,7 @@ vi.mock("../../shared/api", () => ({
   updateService: vi.fn(),
 }));
 
+const mockedGetServiceTotals = vi.mocked(getServiceTotals);
 const mockedListActiveServices = vi.mocked(listActiveServices);
 const mockedListFrozenServices = vi.mocked(listFrozenServices);
 const mockedReactivateService = vi.mocked(reactivateService);
@@ -78,6 +87,69 @@ const reactivatedService: ServiceRecordDto = {
   status: "active",
 };
 
+const zeroTotals: ServiceTotalsDto = {
+  ars: {
+    totalCost: { minorUnits: "0", currencyCode: "ARS" },
+    userShare: {
+      numeratorMinor: "0",
+      denominator: "1",
+      currencyCode: "ARS",
+    },
+  },
+  usd: {
+    totalCost: { minorUnits: "0", currencyCode: "USD" },
+    userShare: {
+      numeratorMinor: "0",
+      denominator: "1",
+      currencyCode: "USD",
+    },
+  },
+};
+
+const totalsWithActiveServices: ServiceTotalsDto = {
+  ars: {
+    totalCost: { minorUnits: "10000", currencyCode: "ARS" },
+    userShare: {
+      numeratorMinor: "10000",
+      denominator: "3",
+      currencyCode: "ARS",
+    },
+  },
+  usd: {
+    totalCost: { minorUnits: "5000", currencyCode: "USD" },
+    userShare: {
+      numeratorMinor: "5000",
+      denominator: "2",
+      currencyCode: "USD",
+    },
+  },
+};
+
+const updatedTotals: ServiceTotalsDto = {
+  ars: {
+    totalCost: { minorUnits: "12000", currencyCode: "ARS" },
+    userShare: {
+      numeratorMinor: "12000",
+      denominator: "3",
+      currencyCode: "ARS",
+    },
+  },
+  usd: zeroTotals.usd,
+};
+
+function totalsRegion() {
+  return screen.getByRole("region", { name: "Totales de servicios activos" });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+
+  return { promise, resolve };
+}
+
 function fillForm(name: string) {
   fireEvent.change(screen.getByLabelText("Nombre"), {
     target: { value: name },
@@ -96,7 +168,8 @@ function openFrozenView() {
 
 describe("ServicesScreen", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    mockedGetServiceTotals.mockResolvedValue(zeroTotals);
     mockedListActiveServices.mockResolvedValue([service]);
     mockedListFrozenServices.mockResolvedValue([]);
     mockedReactivateService.mockResolvedValue({ outcome: "reactivated" });
@@ -126,6 +199,9 @@ describe("ServicesScreen", () => {
     expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Luz")).toBeInTheDocument();
     expect(screen.getByText("ARS 100,00 ÷ 3")).toBeInTheDocument();
+    expect(await screen.findByRole("region", {
+      name: "Totales de servicios activos",
+    })).toBeInTheDocument();
   });
 
   it("muestra un estado vacío cuando no hay servicios activos", async () => {
@@ -145,7 +221,7 @@ describe("ServicesScreen", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("sin conexión");
   });
 
-  it("no invoca comandos de modificación ni de totales al montar", async () => {
+  it("consulta los totales al montar sin invocar comandos de modificación", async () => {
     render(<ServicesScreen />);
 
     await screen.findByRole("table");
@@ -156,7 +232,7 @@ describe("ServicesScreen", () => {
     expect(freezeService).not.toHaveBeenCalled();
     expect(reactivateService).not.toHaveBeenCalled();
     expect(listFrozenServices).not.toHaveBeenCalled();
-    expect(getServiceTotals).not.toHaveBeenCalled();
+    expect(getServiceTotals).toHaveBeenCalledTimes(1);
   });
 
   it("abre el modal de alta desde Nuevo servicio", async () => {
@@ -184,10 +260,13 @@ describe("ServicesScreen", () => {
     expect(screen.getByLabelText("Moneda")).toBeDisabled();
   });
 
-  it("recarga los servicios activos después de un alta exitosa", async () => {
+  it("recarga los servicios activos y los totales después de un alta exitosa", async () => {
     mockedListActiveServices
       .mockResolvedValueOnce([service])
       .mockResolvedValueOnce([updatedService]);
+    mockedGetServiceTotals
+      .mockResolvedValueOnce(zeroTotals)
+      .mockResolvedValueOnce(updatedTotals);
 
     render(<ServicesScreen />);
     await screen.findByRole("table");
@@ -203,13 +282,18 @@ describe("ServicesScreen", () => {
     await waitFor(() => {
       expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
     });
+    expect(await within(totalsRegion()).findByText("ARS 120,00")).toBeInTheDocument();
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("recarga los servicios activos después de una edición exitosa", async () => {
+  it("recarga los servicios activos y actualiza los totales después de una edición exitosa", async () => {
     mockedListActiveServices
       .mockResolvedValueOnce([service])
       .mockResolvedValueOnce([updatedService]);
+    mockedGetServiceTotals
+      .mockResolvedValueOnce(totalsWithActiveServices)
+      .mockResolvedValueOnce(updatedTotals);
 
     render(<ServicesScreen />);
     await screen.findByRole("table");
@@ -230,6 +314,9 @@ describe("ServicesScreen", () => {
     await waitFor(() => {
       expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
     });
+    expect(await within(totalsRegion()).findByText("ARS 120,00")).toBeInTheDocument();
+    expect(within(totalsRegion()).queryByText("ARS 100,00")).not.toBeInTheDocument();
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(2);
   });
 
   it("evita guardados duplicados durante el envío", async () => {
@@ -311,6 +398,10 @@ describe("ServicesScreen", () => {
     expect(
       screen.queryByRole("table", { name: "Servicios activos" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Totales de servicios activos" }),
+    ).not.toBeInTheDocument();
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(1);
   });
 
   it("evita consultas duplicadas al alternar repetidamente a Congelados", async () => {
@@ -351,11 +442,14 @@ describe("ServicesScreen", () => {
     );
   });
 
-  it("recarga servicios activos al volver desde Congelados", async () => {
+  it("recarga servicios activos y totales al volver desde Congelados", async () => {
     mockedListActiveServices
       .mockResolvedValueOnce([service])
       .mockResolvedValueOnce([service]);
     mockedListFrozenServices.mockResolvedValue([frozenService]);
+    mockedGetServiceTotals
+      .mockResolvedValueOnce(zeroTotals)
+      .mockResolvedValueOnce(updatedTotals);
 
     render(<ServicesScreen />);
     await screen.findByRole("table", { name: "Servicios activos" });
@@ -368,14 +462,19 @@ describe("ServicesScreen", () => {
     expect(
       await screen.findByRole("table", { name: "Servicios activos" }),
     ).toBeInTheDocument();
+    expect(await within(totalsRegion()).findByText("ARS 120,00")).toBeInTheDocument();
     expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(2);
   });
 
-  it("reactiva un servicio, vuelve a Activos y recarga la lista", async () => {
+  it("reactiva un servicio, vuelve a Activos y recarga la lista y los totales", async () => {
     mockedListActiveServices
       .mockResolvedValueOnce([service])
       .mockResolvedValueOnce([service, reactivatedService]);
     mockedListFrozenServices.mockResolvedValue([frozenService]);
+    mockedGetServiceTotals
+      .mockResolvedValueOnce(zeroTotals)
+      .mockResolvedValueOnce(totalsWithActiveServices);
 
     render(<ServicesScreen />);
     await screen.findByRole("table", { name: "Servicios activos" });
@@ -390,9 +489,14 @@ describe("ServicesScreen", () => {
     expect(mockedReactivateService).toHaveBeenCalledTimes(1);
     expect(mockedReactivateService).toHaveBeenCalledWith(frozenService.id);
     expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
-    expect(screen.getByText("Netflix")).toBeInTheDocument();
-    expect(screen.getByText("USD 50,00 ÷ 2")).toBeInTheDocument();
-    expect(screen.getByText("Pago compartido")).toBeInTheDocument();
+    expect(await within(totalsRegion()).findByText("USD 50,00")).toBeInTheDocument();
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(2);
+    const activeTable = within(
+      screen.getByRole("table", { name: "Servicios activos" }),
+    );
+    expect(activeTable.getByText("Netflix")).toBeInTheDocument();
+    expect(activeTable.getByText("USD 50,00 ÷ 2")).toBeInTheDocument();
+    expect(activeTable.getByText("Pago compartido")).toBeInTheDocument();
     expect(
       screen.queryByRole("table", { name: "Servicios congelados" }),
     ).not.toBeInTheDocument();
@@ -417,6 +521,7 @@ describe("ServicesScreen", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(2);
   });
 
   it("mantiene la fila congelada y permite reintentar cuando falla la reactivación", async () => {
@@ -525,5 +630,107 @@ describe("ServicesScreen", () => {
       screen.queryByRole("table", { name: "Servicios activos" }),
     ).not.toBeInTheDocument();
     expect(mockedReactivateService).toHaveBeenCalledTimes(1);
+  });
+
+  it("muestra el estado de carga de los totales sin ocultar la tabla de activos", async () => {
+    mockedGetServiceTotals.mockReturnValue(
+      new Promise<ServiceTotalsDto>(() => {}),
+    );
+
+    render(<ServicesScreen />);
+
+    expect(screen.getByText("Cargando totales…")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("table", { name: "Servicios activos" }),
+    ).toBeInTheDocument();
+  });
+
+  it("muestra ambos totales con etiquetas distintas y montos por moneda", async () => {
+    mockedGetServiceTotals.mockResolvedValue(totalsWithActiveServices);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    const region = totalsRegion();
+    expect(
+      within(region).getByText("Costo total de servicios activos"),
+    ).toBeInTheDocument();
+    expect(within(region).getByText("Mi gasto")).toBeInTheDocument();
+    expect(within(region).getByText("ARS 100,00")).toBeInTheDocument();
+    expect(within(region).getByText("USD 50,00")).toBeInTheDocument();
+    expect(within(region).getByText("ARS 100,00 ÷ 3")).toBeInTheDocument();
+    expect(within(region).getByText("USD 50,00 ÷ 2")).toBeInTheDocument();
+  });
+
+  it("mantiene la tabla visible y no muestra totales cuando falla su consulta", async () => {
+    mockedGetServiceTotals.mockRejectedValue(new Error("sin conexión totales"));
+
+    render(<ServicesScreen />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudieron cargar los totales: sin conexión totales",
+    );
+    expect(
+      screen.getByRole("table", { name: "Servicios activos" }),
+    ).toBeInTheDocument();
+    expect(
+      within(totalsRegion()).queryByText("Costo total de servicios activos"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("descarta una respuesta obsoleta de totales", async () => {
+    const first = deferred<ServiceTotalsDto>();
+    const second = deferred<ServiceTotalsDto>();
+    mockedListFrozenServices.mockResolvedValue([frozenService]);
+    mockedGetServiceTotals
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+    fireEvent.click(screen.getByRole("button", { name: "Activos" }));
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    await act(async () => {
+      second.resolve(updatedTotals);
+    });
+    expect(
+      await within(totalsRegion()).findByText("ARS 120,00"),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      first.resolve(totalsWithActiveServices);
+    });
+    expect(
+      within(totalsRegion()).queryByText("ARS 100,00"),
+    ).not.toBeInTheDocument();
+    expect(within(totalsRegion()).getByText("ARS 120,00")).toBeInTheDocument();
+  });
+
+  it("no conserva totales anteriores cuando falla una recarga", async () => {
+    mockedListActiveServices
+      .mockResolvedValueOnce([service])
+      .mockResolvedValueOnce([updatedService]);
+    mockedGetServiceTotals
+      .mockResolvedValueOnce(totalsWithActiveServices)
+      .mockRejectedValueOnce(new Error("falló totales"));
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar Luz" }));
+    fillForm("Internet");
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByText("Internet")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudieron cargar los totales: falló totales",
+    );
+    expect(
+      within(totalsRegion()).queryByText("ARS 100,00"),
+    ).not.toBeInTheDocument();
   });
 });

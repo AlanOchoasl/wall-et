@@ -5,16 +5,19 @@ import { App } from "./App";
 import {
   createService,
   getAppStatus,
+  getServiceTotals,
   listActiveServices,
   listFrozenServices,
   reactivateService,
   updateService,
   type ServiceRecordDto,
+  type ServiceTotalsDto,
 } from "./shared/api";
 
 vi.mock("./shared/api", () => ({
   createService: vi.fn(),
   getAppStatus: vi.fn(),
+  getServiceTotals: vi.fn(),
   listActiveServices: vi.fn(),
   listFrozenServices: vi.fn(),
   reactivateService: vi.fn(),
@@ -22,6 +25,7 @@ vi.mock("./shared/api", () => ({
 }));
 
 const mockedGetAppStatus = vi.mocked(getAppStatus);
+const mockedGetServiceTotals = vi.mocked(getServiceTotals);
 const mockedListActiveServices = vi.mocked(listActiveServices);
 const mockedListFrozenServices = vi.mocked(listFrozenServices);
 const mockedReactivateService = vi.mocked(reactivateService);
@@ -42,9 +46,30 @@ const activeService: ServiceRecordDto = {
   updatedAt: "2026-11-23T12:00:00.000Z",
 };
 
+const zeroTotals: ServiceTotalsDto = {
+  ars: {
+    totalCost: { minorUnits: "0", currencyCode: "ARS" },
+    userShare: {
+      numeratorMinor: "0",
+      denominator: "1",
+      currencyCode: "ARS",
+    },
+  },
+  usd: {
+    totalCost: { minorUnits: "0", currencyCode: "USD" },
+    userShare: {
+      numeratorMinor: "0",
+      denominator: "1",
+      currencyCode: "USD",
+    },
+  },
+};
+
 describe("App", () => {
   beforeEach(() => {
     mockedGetAppStatus.mockReset();
+    mockedGetServiceTotals.mockReset();
+    mockedGetServiceTotals.mockResolvedValue(zeroTotals);
     mockedListActiveServices.mockReset();
     mockedListActiveServices.mockResolvedValue([]);
     mockedListFrozenServices.mockReset();
@@ -107,7 +132,12 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Servicios" }),
     ).toBeInTheDocument();
     expect(await screen.findByText("Luz")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Costo total de servicios activos"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Mi gasto")).toBeInTheDocument();
     expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+    expect(mockedGetServiceTotals).toHaveBeenCalledTimes(1);
     expect(createService).not.toHaveBeenCalled();
     expect(updateService).not.toHaveBeenCalled();
   });

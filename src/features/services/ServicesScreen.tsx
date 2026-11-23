@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  getServiceTotals,
   listActiveServices,
   listFrozenServices,
   reactivateService,
   type ServiceRecordDto,
+  type ServiceTotalsDto,
 } from "../../shared/api";
 import { ActiveServicesTable } from "./ActiveServicesTable";
 import { FrozenServicesTable } from "./FrozenServicesTable";
 import { ServiceFormModal } from "./ServiceFormModal";
+import { ServiceTotalsSummary } from "./ServiceTotalsSummary";
 
 type ModalState =
   | { mode: "create" }
@@ -29,6 +32,8 @@ export function ServicesScreen() {
   const [frozenServices, setFrozenServices] = useState<ServiceRecordDto[] | null>(
     null,
   );
+  const [totals, setTotals] = useState<ServiceTotalsDto | null>(null);
+  const [totalsError, setTotalsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -98,6 +103,33 @@ export function ServicesScreen() {
   }, [view, reloadToken]);
 
   useEffect(() => {
+    if (view !== "active") {
+      return;
+    }
+
+    let current = true;
+
+    getServiceTotals()
+      .then((value) => {
+        if (current) {
+          setTotals(value);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (current) {
+          setTotals(null);
+          setTotalsError(
+            errorMessage(reason, "No se pudieron cargar los totales."),
+          );
+        }
+      });
+
+    return () => {
+      current = false;
+    };
+  }, [view, reloadToken]);
+
+  useEffect(() => {
     if (view !== "frozen" || frozenToken === 0) {
       return;
     }
@@ -133,6 +165,8 @@ export function ServicesScreen() {
     }
 
     setError(null);
+    setTotals(null);
+    setTotalsError(null);
     setView(nextView);
 
     if (nextView === "active") {
@@ -175,12 +209,16 @@ export function ServicesScreen() {
     }
 
     pendingReactivation.current = service;
+    setTotals(null);
+    setTotalsError(null);
     setView("active");
   }
 
   function handleSaved() {
     setModal(null);
     setError(null);
+    setTotals(null);
+    setTotalsError(null);
     setReloadToken((token) => token + 1);
   }
 
@@ -206,6 +244,10 @@ export function ServicesScreen() {
           Nuevo servicio
         </button>
       </div>
+
+      {!showingFrozen ? (
+        <ServiceTotalsSummary totals={totals} error={totalsError} />
+      ) : null}
 
       <div
         className="services-view-switch"
