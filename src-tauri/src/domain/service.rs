@@ -9,6 +9,23 @@ pub enum ServiceStatus {
     Frozen,
 }
 
+impl ServiceStatus {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Frozen => "frozen",
+        }
+    }
+
+    pub(crate) fn from_code(value: &str) -> Option<Self> {
+        match value {
+            "active" => Some(Self::Active),
+            "frozen" => Some(Self::Frozen),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Service {
     name: String,
@@ -38,12 +55,7 @@ impl Service {
         let name = name.into();
         validate_name(&name)?;
         let total_cost = parse_total_cost(total_cost, currency)?;
-        let shared_people_count = NonZeroU32::new(shared_people_count).ok_or_else(|| {
-            DomainError::validation(
-                "sharedPeopleCount",
-                "La cantidad de personas debe ser mayor o igual a 1.",
-            )
-        })?;
+        let shared_people_count = parse_people_count(shared_people_count)?;
 
         Ok(Self {
             name,
@@ -51,6 +63,27 @@ impl Service {
             shared_people_count,
             notes,
             status: ServiceStatus::Active,
+        })
+    }
+
+    pub(crate) fn from_parts(
+        name: impl Into<String>,
+        total_cost: Money,
+        shared_people_count: u32,
+        notes: Option<String>,
+        status: ServiceStatus,
+    ) -> Result<Self, DomainError> {
+        let name = name.into();
+        validate_name(&name)?;
+        validate_total_cost(total_cost)?;
+        let shared_people_count = parse_people_count(shared_people_count)?;
+
+        Ok(Self {
+            name,
+            total_cost,
+            shared_people_count,
+            notes,
+            status,
         })
     }
 
@@ -119,14 +152,28 @@ fn parse_total_cost(value: &str, currency: Currency) -> Result<Money, DomainErro
         other => other,
     })?;
 
+    validate_total_cost(total_cost)?;
+
+    Ok(total_cost)
+}
+
+fn validate_total_cost(total_cost: Money) -> Result<(), DomainError> {
     if total_cost.minor_units() < 0 {
         return Err(DomainError::validation(
             "totalCost",
             "El costo total no puede ser negativo.",
         ));
     }
+    Ok(())
+}
 
-    Ok(total_cost)
+fn parse_people_count(shared_people_count: u32) -> Result<NonZeroU32, DomainError> {
+    NonZeroU32::new(shared_people_count).ok_or_else(|| {
+        DomainError::validation(
+            "sharedPeopleCount",
+            "La cantidad de personas debe ser mayor o igual a 1.",
+        )
+    })
 }
 
 #[cfg(test)]
@@ -176,6 +223,105 @@ mod tests {
         let service = Service::new("Luz", "100,00", 1, None).unwrap();
 
         assert_eq!(service.status(), ServiceStatus::Active);
+    }
+
+    #[test]
+    fn from_parts_reconstruye_servicio_activo() {
+        let service = Service::from_parts(
+            "Luz",
+            Money::from_minor_units(10_000, Currency::Ars),
+            2,
+            Some("compartido".to_string()),
+            ServiceStatus::Active,
+        )
+        .unwrap();
+
+        assert_eq!(service.name(), "Luz");
+        assert_eq!(service.total_cost().minor_units(), 10_000);
+        assert_eq!(service.currency(), Currency::Ars);
+        assert_eq!(service.shared_people_count().get(), 2);
+        assert_eq!(service.notes(), Some("compartido"));
+        assert_eq!(service.status(), ServiceStatus::Active);
+    }
+
+    #[test]
+    fn from_parts_reconstruye_servicio_congelado() {
+        let service = Service::from_parts(
+            "Luz",
+            Money::from_minor_units(10_000, Currency::Usd),
+            3,
+            None,
+            ServiceStatus::Frozen,
+        )
+        .unwrap();
+
+        assert_eq!(service.currency(), Currency::Usd);
+        assert_eq!(service.status(), ServiceStatus::Frozen);
+    }
+
+    #[test]
+    fn from_parts_rechaza_nombre_vacio() {
+        let error = Service::from_parts(
+            "",
+            Money::from_minor_units(10_000, Currency::Ars),
+            2,
+            None,
+            ServiceStatus::Active,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            DomainError::Validation { field: "name", .. }
+        ));
+    }
+
+    #[test]
+    fn from_parts_rechaza_cantidad_de_personas_cero() {
+        let error = Service::from_parts(
+            "Luz",
+            Money::from_minor_units(10_000, Currency::Ars),
+            0,
+            None,
+            ServiceStatus::Active,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            DomainError::Validation {
+                field: "sharedPeopleCount",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn from_parts_rechaza_costo_negativo() {
+        let error = Service::from_parts(
+            "Luz",
+            Money::from_minor_units(-1, Currency::Ars),
+            2,
+            None,
+            ServiceStatus::Active,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            DomainError::Validation {
+                field: "totalCost",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn codigos_de_estado_hacen_round_trip() {
+        for status in [ServiceStatus::Active, ServiceStatus::Frozen] {
+            assert_eq!(ServiceStatus::from_code(status.as_str()), Some(status));
+        }
+        assert_eq!(ServiceStatus::from_code("paused"), None);
     }
 
     #[test]

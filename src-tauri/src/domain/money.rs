@@ -16,6 +16,14 @@ impl Currency {
         }
     }
 
+    pub(crate) fn from_code(code: &str) -> Option<Self> {
+        match code {
+            "ARS" => Some(Self::Ars),
+            "USD" => Some(Self::Usd),
+            _ => None,
+        }
+    }
+
     pub const fn minor_unit_exponent(self) -> u8 {
         2
     }
@@ -423,6 +431,15 @@ mod tests {
         assert_eq!(Currency::Usd.code(), "USD");
         assert_eq!(Currency::Ars.minor_unit_exponent(), 2);
         assert_eq!(Currency::Usd.minor_unit_exponent(), 2);
+    }
+
+    #[test]
+    fn currency_from_code_hace_round_trip() {
+        for currency in [Currency::Ars, Currency::Usd] {
+            assert_eq!(Currency::from_code(currency.code()), Some(currency));
+        }
+        assert_eq!(Currency::from_code("EUR"), None);
+        assert_eq!(Currency::from_code("ars"), None);
     }
 
     #[test]
