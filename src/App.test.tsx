@@ -6,6 +6,8 @@ import {
   createService,
   getAppStatus,
   listActiveServices,
+  listFrozenServices,
+  reactivateService,
   updateService,
   type ServiceRecordDto,
 } from "./shared/api";
@@ -14,11 +16,15 @@ vi.mock("./shared/api", () => ({
   createService: vi.fn(),
   getAppStatus: vi.fn(),
   listActiveServices: vi.fn(),
+  listFrozenServices: vi.fn(),
+  reactivateService: vi.fn(),
   updateService: vi.fn(),
 }));
 
 const mockedGetAppStatus = vi.mocked(getAppStatus);
 const mockedListActiveServices = vi.mocked(listActiveServices);
+const mockedListFrozenServices = vi.mocked(listFrozenServices);
+const mockedReactivateService = vi.mocked(reactivateService);
 
 const activeService: ServiceRecordDto = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -41,6 +47,9 @@ describe("App", () => {
     mockedGetAppStatus.mockReset();
     mockedListActiveServices.mockReset();
     mockedListActiveServices.mockResolvedValue([]);
+    mockedListFrozenServices.mockReset();
+    mockedListFrozenServices.mockResolvedValue([]);
+    mockedReactivateService.mockReset();
   });
 
   it("muestra el título de la aplicación", () => {

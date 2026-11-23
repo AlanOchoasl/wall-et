@@ -26,6 +26,8 @@ vi.mock("../../shared/api", () => ({
 }));
 
 const mockedListActiveServices = vi.mocked(listActiveServices);
+const mockedListFrozenServices = vi.mocked(listFrozenServices);
+const mockedReactivateService = vi.mocked(reactivateService);
 const mockedCreateService = vi.mocked(createService);
 const mockedUpdateService = vi.mocked(updateService);
 
@@ -56,6 +58,26 @@ const updatedService: ServiceRecordDto = {
   },
 };
 
+const frozenService: ServiceRecordDto = {
+  ...service,
+  id: "00000000-0000-4000-8000-000000000002",
+  name: "Netflix",
+  totalCost: { minorUnits: "5000", currencyCode: "USD" },
+  myShare: {
+    numeratorMinor: "5000",
+    denominator: "2",
+    currencyCode: "USD",
+  },
+  sharedPeopleCount: 2,
+  notes: "Pago compartido",
+  status: "frozen",
+};
+
+const reactivatedService: ServiceRecordDto = {
+  ...frozenService,
+  status: "active",
+};
+
 function fillForm(name: string) {
   fireEvent.change(screen.getByLabelText("Nombre"), {
     target: { value: name },
@@ -68,10 +90,16 @@ function fillForm(name: string) {
   });
 }
 
+function openFrozenView() {
+  fireEvent.click(screen.getByRole("button", { name: "Congelados" }));
+}
+
 describe("ServicesScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedListActiveServices.mockResolvedValue([service]);
+    mockedListFrozenServices.mockResolvedValue([]);
+    mockedReactivateService.mockResolvedValue({ outcome: "reactivated" });
     mockedCreateService.mockResolvedValue(service);
     mockedUpdateService.mockResolvedValue(service);
   });
@@ -227,5 +255,275 @@ describe("ServicesScreen", () => {
     await waitFor(() => {
       expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it("muestra el control interno y comienza en la vista Activos", () => {
+    render(<ServicesScreen />);
+
+    expect(screen.getByRole("button", { name: "Activos" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByRole("button", { name: "Congelados" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("group", { name: "Estado de los servicios" }),
+    ).toBeInTheDocument();
+  });
+
+  it("muestra el estado de carga de congelados sin consultarlos al montar", async () => {
+    mockedListFrozenServices.mockReturnValue(
+      new Promise<ServiceRecordDto[]>(() => {}),
+    );
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    expect(mockedListFrozenServices).not.toHaveBeenCalled();
+
+    openFrozenView();
+
+    expect(
+      screen.getByText("Cargando servicios congelados…"),
+    ).toBeInTheDocument();
+    expect(mockedListFrozenServices).toHaveBeenCalledTimes(1);
+  });
+
+  it("consulta los servicios congelados bajo demanda y muestra sus datos", async () => {
+    mockedListFrozenServices.mockResolvedValue([frozenService]);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+
+    expect(
+      await screen.findByRole("table", { name: "Servicios congelados" }),
+    ).toBeInTheDocument();
+    expect(mockedListFrozenServices).toHaveBeenCalledTimes(1);
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Netflix")).toBeInTheDocument();
+    expect(screen.getByText("USD 50,00")).toBeInTheDocument();
+    expect(screen.getByText("USD 50,00 ÷ 2")).toBeInTheDocument();
+    expect(screen.getByText("Pago compartido")).toBeInTheDocument();
+    expect(screen.getByText("Congelado")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("table", { name: "Servicios activos" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("evita consultas duplicadas al alternar repetidamente a Congelados", async () => {
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+    fireEvent.click(screen.getByRole("button", { name: "Congelados" }));
+
+    await screen.findByText("No hay servicios congelados.");
+    expect(mockedListFrozenServices).toHaveBeenCalledTimes(1);
+  });
+
+  it("muestra el estado vacío de servicios congelados", async () => {
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+
+    expect(
+      await screen.findByText("No hay servicios congelados."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("muestra errores de consulta de congelados en un alert accesible", async () => {
+    mockedListFrozenServices.mockRejectedValue(
+      new Error("sin conexión congelados"),
+    );
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "sin conexión congelados",
+    );
+  });
+
+  it("recarga servicios activos al volver desde Congelados", async () => {
+    mockedListActiveServices
+      .mockResolvedValueOnce([service])
+      .mockResolvedValueOnce([service]);
+    mockedListFrozenServices.mockResolvedValue([frozenService]);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Activos" }));
+
+    expect(
+      await screen.findByRole("table", { name: "Servicios activos" }),
+    ).toBeInTheDocument();
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
+  });
+
+  it("reactiva un servicio, vuelve a Activos y recarga la lista", async () => {
+    mockedListActiveServices
+      .mockResolvedValueOnce([service])
+      .mockResolvedValueOnce([service, reactivatedService]);
+    mockedListFrozenServices.mockResolvedValue([frozenService]);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+    fireEvent.click(screen.getByRole("button", { name: "Reactivar Netflix" }));
+
+    expect(
+      await screen.findByRole("table", { name: "Servicios activos" }),
+    ).toBeInTheDocument();
+    expect(mockedReactivateService).toHaveBeenCalledTimes(1);
+    expect(mockedReactivateService).toHaveBeenCalledWith(frozenService.id);
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("Netflix")).toBeInTheDocument();
+    expect(screen.getByText("USD 50,00 ÷ 2")).toBeInTheDocument();
+    expect(screen.getByText("Pago compartido")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("table", { name: "Servicios congelados" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("trata already_active como éxito sin mostrar un error", async () => {
+    mockedReactivateService.mockResolvedValue({ outcome: "already_active" });
+    mockedListActiveServices
+      .mockResolvedValueOnce([service])
+      .mockResolvedValueOnce([service, reactivatedService]);
+    mockedListFrozenServices.mockResolvedValue([frozenService]);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+    fireEvent.click(screen.getByRole("button", { name: "Reactivar Netflix" }));
+
+    expect(
+      await screen.findByRole("table", { name: "Servicios activos" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
+  });
+
+  it("mantiene la fila congelada y permite reintentar cuando falla la reactivación", async () => {
+    mockedReactivateService.mockRejectedValue(
+      new Error("no se pudo reactivar"),
+    );
+    mockedListFrozenServices.mockResolvedValue([frozenService]);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+    fireEvent.click(screen.getByRole("button", { name: "Reactivar Netflix" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "no se pudo reactivar",
+    );
+    expect(
+      screen.getByRole("table", { name: "Servicios congelados" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Netflix")).toBeInTheDocument();
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+    expect(mockedReactivateService).toHaveBeenCalledTimes(1);
+  });
+
+  it("muestra un error cuando la reactivación devuelve un resultado inesperado", async () => {
+    mockedReactivateService.mockResolvedValue({ outcome: "already_frozen" });
+    mockedListFrozenServices.mockResolvedValue([frozenService]);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+    fireEvent.click(screen.getByRole("button", { name: "Reactivar Netflix" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo reactivar el servicio Netflix.",
+    );
+    expect(
+      screen.getByRole("table", { name: "Servicios congelados" }),
+    ).toBeInTheDocument();
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+  });
+
+  it("evita dobles envíos durante la reactivación", async () => {
+    let resolveReactivate: (value: { outcome: "reactivated" }) => void = () => {};
+    mockedReactivateService.mockReturnValue(
+      new Promise<{ outcome: "reactivated" }>((resolve) => {
+        resolveReactivate = resolve;
+      }),
+    );
+    mockedListActiveServices
+      .mockResolvedValueOnce([service])
+      .mockResolvedValueOnce([service, reactivatedService]);
+    mockedListFrozenServices.mockResolvedValue([frozenService]);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+
+    const reactivateButton = screen.getByRole("button", {
+      name: "Reactivar Netflix",
+    });
+    fireEvent.click(reactivateButton);
+    fireEvent.click(reactivateButton);
+
+    expect(mockedReactivateService).toHaveBeenCalledTimes(1);
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+
+    resolveReactivate({ outcome: "reactivated" });
+
+    expect(
+      await screen.findByRole("table", { name: "Servicios activos" }),
+    ).toBeInTheDocument();
+    expect(mockedListActiveServices).toHaveBeenCalledTimes(2);
+  });
+
+  it("no muestra éxito incompleto si falla la recarga de activos tras reactivar", async () => {
+    mockedListActiveServices
+      .mockResolvedValueOnce([service])
+      .mockRejectedValueOnce(new Error("falló recarga"));
+    mockedListFrozenServices.mockResolvedValueOnce([frozenService]);
+
+    render(<ServicesScreen />);
+    await screen.findByRole("table", { name: "Servicios activos" });
+
+    openFrozenView();
+    await screen.findByRole("table", { name: "Servicios congelados" });
+    fireEvent.click(screen.getByRole("button", { name: "Reactivar Netflix" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "El servicio se reactivó, pero no se pudieron cargar los servicios activos: falló recarga",
+    );
+    await waitFor(() => {
+      expect(mockedListFrozenServices).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByRole("button", { name: "Congelados" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.queryByRole("table", { name: "Servicios activos" }),
+    ).not.toBeInTheDocument();
+    expect(mockedReactivateService).toHaveBeenCalledTimes(1);
   });
 });

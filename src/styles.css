@@ -89,6 +89,20 @@ body {
   gap: 16px;
 }
 
+.services-view-switch {
+  display: inline-flex;
+  width: max-content;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(127, 127, 127, 0.4);
+  border-radius: 12px;
+}
+
+.services-view-switch .button[aria-pressed="true"] {
+  border-color: #7047e8;
+  background: rgba(112, 71, 232, 0.12);
+}
+
 .button {
   min-height: 42px;
   padding: 8px 16px;
@@ -219,6 +233,11 @@ body {
 @media (prefers-color-scheme: dark) {
   .button--primary {
     background: #8a62ff;
+  }
+
+  .services-view-switch .button[aria-pressed="true"] {
+    border-color: #8a62ff;
+    background: rgba(138, 98, 255, 0.2);
   }
 
   .field [aria-invalid="true"] {
