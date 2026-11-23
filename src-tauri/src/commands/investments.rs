@@ -159,7 +159,10 @@ mod tests {
     };
     use crate::application::investment_repository::InvestmentRecord;
     use crate::application::service_repository::{ServiceId, ServiceRecord};
-    use crate::application::service_use_cases::{self, CreateServiceInput};
+    use crate::application::service_use_cases::{
+        self, CreateServiceInput, DeleteConfirmation, DeleteServiceOutcome, FreezeServiceOutcome,
+        ReactivateServiceOutcome, UpdateServiceInput,
+    };
     use crate::domain::investment::{Investment, Month};
     use crate::domain::money::Currency;
     use crate::domain::service::{Service, ServiceStatus};
@@ -340,23 +343,72 @@ mod tests {
         )
     }
 
-    fn create_service_at(path: &Path, currency: Currency, total_cost: &str) {
+    fn create_service_at(
+        path: &Path,
+        name: &str,
+        currency: Currency,
+        total_cost: &str,
+        shared_people_count: u32,
+    ) -> ServiceRecord {
         let connection = database::open(path).unwrap();
         let input = CreateServiceInput {
-            name: "Luz".to_owned(),
+            name: name.to_owned(),
             total_cost: total_cost.to_owned(),
             currency,
-            shared_people_count: 1,
+            shared_people_count,
             notes: None,
         };
-        service_use_cases::create_service(&connection, &SERVICE_REPOSITORY, input).unwrap();
+        service_use_cases::create_service(&connection, &SERVICE_REPOSITORY, input).unwrap()
+    }
+
+    fn update_service_at(
+        path: &Path,
+        id: ServiceId,
+        name: &str,
+        total_cost: &str,
+        shared_people_count: u32,
+    ) {
+        let connection = database::open(path).unwrap();
+        let input = UpdateServiceInput {
+            name: name.to_owned(),
+            total_cost: total_cost.to_owned(),
+            shared_people_count,
+            notes: None,
+        };
+        service_use_cases::update_service(&connection, &SERVICE_REPOSITORY, id, input).unwrap();
+    }
+
+    fn delete_service_at(path: &Path, id: ServiceId) {
+        let connection = database::open(path).unwrap();
+        let outcome = service_use_cases::delete_service(
+            &connection,
+            &SERVICE_REPOSITORY,
+            id,
+            DeleteConfirmation::Confirmed,
+        )
+        .unwrap();
+        assert!(matches!(outcome, DeleteServiceOutcome::Deleted));
+    }
+
+    fn freeze_service_at(path: &Path, id: ServiceId) {
+        let connection = database::open(path).unwrap();
+        let outcome =
+            service_use_cases::freeze_service(&connection, &SERVICE_REPOSITORY, id).unwrap();
+        assert!(matches!(outcome, FreezeServiceOutcome::Frozen(_)));
+    }
+
+    fn reactivate_service_at(path: &Path, id: ServiceId) {
+        let connection = database::open(path).unwrap();
+        let outcome =
+            service_use_cases::reactivate_service(&connection, &SERVICE_REPOSITORY, id).unwrap();
+        assert!(matches!(outcome, ReactivateServiceOutcome::Reactivated(_)));
     }
 
     #[test]
     fn crear_inversion_devuelve_origen_y_derivados_con_estados() {
         let directory = tempfile::tempdir().unwrap();
         let path = database_path(&directory);
-        create_service_at(&path, Currency::Ars, "100,00");
+        create_service_at(&path, "Luz", Currency::Ars, "100,00", 1);
 
         let summary = create_at(
             &path,
@@ -691,5 +743,198 @@ mod tests {
             assert_eq!(error.code, "persistence");
             assert!(error.field.is_none());
         }
+    }
+
+    fn list_unique_summary(path: &Path) -> InvestmentSummaryDto {
+        let mut records = list_at(path, "2026-03").unwrap();
+        assert_eq!(records.len(), 1);
+        let summary = records.remove(0);
+        let repeated = list_at(path, "2026-03").unwrap();
+        assert_eq!(repeated.len(), 1);
+        assert_eq!(repeated[0], summary);
+        summary
+    }
+
+    fn assert_common_routes(summary: &InvestmentSummaryDto) {
+        assert_eq!(summary.record.month, "2026-03");
+        assert_eq!(summary.record.currency_code, "ARS");
+        assert_eq!(summary.record.capital.minor_units, "36500");
+
+        assert_eq!(
+            summary.derived.gross_yield.definitive.status,
+            CalculationStatusDto::NoDisponible
+        );
+        assert_eq!(
+            summary.derived.gross_yield.definitive.reason,
+            Some(CalculationReasonDto::PendingGrossYieldFormula)
+        );
+        assert!(summary.derived.gross_yield.definitive.value.is_none());
+        assert_eq!(
+            summary.derived.gross_yield.provisional.status,
+            CalculationStatusDto::Provisional
+        );
+        assert_eq!(
+            summary.derived.gross_yield.provisional.reason,
+            Some(CalculationReasonDto::ApprovedDemoPv01)
+        );
+        let gross = summary
+            .derived
+            .gross_yield
+            .provisional
+            .value
+            .as_ref()
+            .unwrap();
+        assert_eq!(gross.numerator_minor, "36500");
+        assert_eq!(gross.denominator, "1");
+        assert_eq!(gross.currency_code, "ARS");
+
+        assert_eq!(
+            summary.derived.net_yield.definitive.status,
+            CalculationStatusDto::NoDisponible
+        );
+        assert_eq!(
+            summary.derived.net_yield.definitive.reason,
+            Some(CalculationReasonDto::PendingNetYieldTreatment)
+        );
+        assert!(summary.derived.net_yield.definitive.value.is_none());
+        assert_eq!(
+            summary.derived.net_yield.provisional.status,
+            CalculationStatusDto::Provisional
+        );
+        assert_eq!(
+            summary.derived.net_yield.provisional.reason,
+            Some(CalculationReasonDto::ApprovedDemoPv02)
+        );
+        let net = summary
+            .derived
+            .net_yield
+            .provisional
+            .value
+            .as_ref()
+            .unwrap();
+        assert_eq!(net.numerator_minor, "30000");
+        assert_eq!(net.denominator, "1");
+        assert_eq!(net.currency_code, "ARS");
+
+        assert_eq!(
+            summary.derived.coverage.definitive.status,
+            CalculationStatusDto::NoDisponible
+        );
+        assert_eq!(
+            summary.derived.coverage.definitive.reason,
+            Some(CalculationReasonDto::PendingNetYield)
+        );
+        assert!(summary.derived.coverage.definitive.value.is_none());
+        assert_eq!(
+            summary.derived.coverage.provisional.status,
+            CalculationStatusDto::Provisional
+        );
+        assert_eq!(
+            summary.derived.coverage.provisional.reason,
+            Some(CalculationReasonDto::ApprovedDemoPv03)
+        );
+    }
+
+    fn assert_expenses(summary: &InvestmentSummaryDto, numerator: &str, denominator: &str) {
+        let expenses = &summary.derived.monthly_expenses;
+        assert_eq!(expenses.numerator_minor, numerator);
+        assert_eq!(expenses.denominator, denominator);
+        assert_eq!(expenses.currency_code, "ARS");
+    }
+
+    fn assert_deficit(summary: &InvestmentSummaryDto, numerator: &str, denominator: &str) {
+        match &summary.derived.coverage.provisional.value {
+            Some(CoverageOutcomeDto::Deficit { amount }) => {
+                assert_eq!(amount.numerator_minor, numerator);
+                assert_eq!(amount.denominator, denominator);
+                assert_eq!(amount.currency_code, "ARS");
+            }
+            other => panic!("se esperaba déficit, se obtuvo {other:?}"),
+        }
+    }
+
+    fn table_columns(connection: &Connection, table: &str) -> Vec<String> {
+        let query = format!("PRAGMA table_info({table})");
+        let mut statement = connection.prepare(&query).unwrap();
+        statement
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+    }
+
+    fn assert_no_derived_persistence(path: &Path) {
+        let connection = database::open(path).unwrap();
+        let investment_columns = table_columns(&connection, "investment");
+        for forbidden in ["monthly_expenses", "gross_yield", "net_yield", "coverage"] {
+            assert!(!investment_columns.iter().any(|column| column == forbidden));
+        }
+        let service_columns = table_columns(&connection, "service");
+        assert!(!service_columns.iter().any(|column| column == "my_share"));
+
+        let investment_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM investment", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(investment_count, 1);
+        let service_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM service", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(service_count, 1);
+    }
+
+    #[test]
+    fn los_cambios_de_servicios_recalculan_gastos_y_cobertura_de_inversiones() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = database_path(&directory);
+
+        create_at(
+            &path,
+            create_input("2026-03", "ARS", "365,00", "100", "365", "65,00"),
+        )
+        .unwrap();
+
+        let main_service = create_service_at(&path, "Principal", Currency::Ars, "100,00", 1);
+        let summary = list_unique_summary(&path);
+        assert_common_routes(&summary);
+        assert_expenses(&summary, "10000", "1");
+        assert_eq!(
+            summary.derived.coverage.provisional.value,
+            Some(CoverageOutcomeDto::Covered)
+        );
+
+        update_service_at(&path, main_service.id(), "Principal", "1000,00", 3);
+        let summary = list_unique_summary(&path);
+        assert_common_routes(&summary);
+        assert_expenses(&summary, "100000", "3");
+        assert_deficit(&summary, "10000", "3");
+
+        let auxiliary_service = create_service_at(&path, "Auxiliar", Currency::Ars, "50,00", 1);
+        let summary = list_unique_summary(&path);
+        assert_common_routes(&summary);
+        assert_expenses(&summary, "115000", "3");
+        assert_deficit(&summary, "25000", "3");
+
+        delete_service_at(&path, auxiliary_service.id());
+        let summary = list_unique_summary(&path);
+        assert_common_routes(&summary);
+        assert_expenses(&summary, "100000", "3");
+        assert_deficit(&summary, "10000", "3");
+
+        freeze_service_at(&path, main_service.id());
+        let summary = list_unique_summary(&path);
+        assert_common_routes(&summary);
+        assert_expenses(&summary, "0", "1");
+        assert_eq!(
+            summary.derived.coverage.provisional.value,
+            Some(CoverageOutcomeDto::ZeroExpenses)
+        );
+
+        reactivate_service_at(&path, main_service.id());
+        let summary = list_unique_summary(&path);
+        assert_common_routes(&summary);
+        assert_expenses(&summary, "100000", "3");
+        assert_deficit(&summary, "10000", "3");
+
+        assert_no_derived_persistence(&path);
     }
 }
