@@ -115,6 +115,17 @@ impl Service {
         self.total_cost
             .checked_div_exact(u64::from(self.shared_people_count.get()))
     }
+
+    pub fn edit(
+        &self,
+        name: impl Into<String>,
+        total_cost: &str,
+        shared_people_count: u32,
+        notes: Option<String>,
+    ) -> Result<Self, DomainError> {
+        let total_cost = parse_total_cost(total_cost, self.currency())?;
+        Self::from_parts(name, total_cost, shared_people_count, notes, self.status)
+    }
 }
 
 #[cfg(test)]
@@ -480,6 +491,32 @@ mod tests {
 
         assert_eq!(service.status(), ServiceStatus::Frozen);
         assert_eq!(share.numerator_minor(), 300_000);
+        assert_eq!(share.denominator(), 1);
+    }
+
+    #[test]
+    fn edit_preserva_moneda_y_estado_y_recalcula() {
+        let service = Service::new_frozen_with_currency(
+            "Spotify",
+            "10000,00",
+            Currency::Usd,
+            4,
+            Some("antigua".to_string()),
+        )
+        .unwrap();
+
+        let edited = service
+            .edit("Spotify Premium", "12000,00", 3, Some("nueva".to_string()))
+            .unwrap();
+        let share = edited.my_share().unwrap();
+
+        assert_eq!(edited.name(), "Spotify Premium");
+        assert_eq!(edited.total_cost().minor_units(), 1_200_000);
+        assert_eq!(edited.currency(), Currency::Usd);
+        assert_eq!(edited.shared_people_count().get(), 3);
+        assert_eq!(edited.notes(), Some("nueva"));
+        assert_eq!(edited.status(), ServiceStatus::Frozen);
+        assert_eq!(share.numerator_minor(), 400_000);
         assert_eq!(share.denominator(), 1);
     }
 }

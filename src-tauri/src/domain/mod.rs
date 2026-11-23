@@ -1,3 +1,4 @@
+pub mod calculations;
 pub mod error;
 pub mod investment;
 pub mod money;
