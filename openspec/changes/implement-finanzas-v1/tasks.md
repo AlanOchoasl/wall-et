@@ -43,7 +43,7 @@ Convención: cada tarea indica dependencias, criterio de aceptación y requisito
 
 ## 5. Módulo Inversiones
 
-- [ ] 5.1 Implementar los casos de uso de alta y edición de inversiones con valores iniciales en cero y validaciones — Depende de: 3.6. Aceptación: pruebas cubren alta válida, defaults en cero, mes obligatorio y datos inválidos sin persistencia. Requisitos: investments (registrar y editar).
+- [x] 5.1 Implementar los casos de uso de alta y edición de inversiones con valores iniciales en cero y validaciones — Depende de: 3.6. Aceptación: pruebas cubren alta válida, defaults en cero, mes obligatorio y datos inválidos sin persistencia. Requisitos: investments (registrar y editar).
 - [ ] 5.2 Implementar la derivación de gastos del mes desde la suma de partes de servicios activos — Depende de: 3.3, 3.6. Aceptación: pruebas devuelven 5500,00 con partes 2500,00 y 3000,00, 0,00 sin activos, recalculan tras congelar un servicio y solo comparan gastos con inversiones de la misma moneda. Requisitos: investments (gastos del mes).
 - [ ] 5.3 Exponer los comandos Tauri del módulo Inversiones y del resumen mensual — Depende de: 5.1, 5.2, 2.6. Aceptación: pruebas de contrato verifican DTOs, valores derivados y estados. Requisitos: investments (registro, edición y consulta).
 - [ ] 5.4 Construir la tabla de inversiones con mes, moneda, datos de origen y columnas de resultados de solo lectura — Depende de: 5.3. Aceptación: prueba de render muestra todas las columnas, incluido el código de moneda, y no permite edición de resultados. Requisitos: investments (tabla), financial-calculations (no edición).

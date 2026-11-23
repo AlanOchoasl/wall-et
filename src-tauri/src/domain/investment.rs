@@ -10,6 +10,9 @@ pub struct Month {
 impl Month {
     pub fn parse(value: &str) -> Result<Self, DomainError> {
         let bytes = value.as_bytes();
+        if bytes.is_empty() {
+            return Err(invalid_month("El mes es obligatorio."));
+        }
         if bytes.len() != 7 {
             return Err(invalid_month("El mes debe tener el formato YYYY-MM."));
         }
@@ -344,10 +347,16 @@ mod tests {
     }
 
     #[test]
-    fn month_parse_rechaza_vacio() {
+    fn month_parse_rechaza_vacio_con_mensaje_obligatorio() {
         let error = Month::parse("").unwrap_err();
 
-        assert_validation_field(error, "month");
+        match error {
+            DomainError::Validation { field, message } => {
+                assert_eq!(field, "month");
+                assert_eq!(message, "El mes es obligatorio.");
+            }
+            other => panic!("se esperaba error de validación, se obtuvo {other:?}"),
+        }
     }
 
     #[test]
