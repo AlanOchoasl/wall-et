@@ -1,5 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ServiceRecordDto } from "../../shared/api";
 import { ActiveServicesTable } from "./ActiveServicesTable";
@@ -37,8 +37,10 @@ const usdService: ServiceRecordDto = {
 };
 
 describe("ActiveServicesTable", () => {
-  it("muestra los siete encabezados con semántica de columna", () => {
-    render(<ActiveServicesTable services={[arsService]} />);
+  it("muestra los encabezados con semántica de columna", () => {
+    render(
+      <ActiveServicesTable services={[arsService]} onEdit={vi.fn()} />,
+    );
 
     const table = screen.getByRole("table", { name: "Servicios activos" });
     const headers = within(table)
@@ -53,11 +55,17 @@ describe("ActiveServicesTable", () => {
       "Mi parte",
       "Notas",
       "Estado",
+      "Acciones",
     ]);
   });
 
   it("muestra una fila por servicio", () => {
-    render(<ActiveServicesTable services={[arsService, usdService]} />);
+    render(
+      <ActiveServicesTable
+        services={[arsService, usdService]}
+        onEdit={vi.fn()}
+      />,
+    );
 
     const rows = within(screen.getByRole("table")).getAllByRole("row");
 
@@ -69,7 +77,12 @@ describe("ActiveServicesTable", () => {
   });
 
   it("muestra moneda, importes, personas, mi parte, notas y estado", () => {
-    render(<ActiveServicesTable services={[arsService, usdService]} />);
+    render(
+      <ActiveServicesTable
+        services={[arsService, usdService]}
+        onEdit={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText("ARS")).toBeInTheDocument();
     expect(screen.getByText("USD")).toBeInTheDocument();
@@ -83,9 +96,33 @@ describe("ActiveServicesTable", () => {
     expect(screen.getAllByText("Activo")).toHaveLength(2);
   });
 
-  it("no muestra acciones de modificación", () => {
-    render(<ActiveServicesTable services={[arsService]} />);
+  it("asocia la acción Editar con el servicio de cada fila", () => {
+    const onEdit = vi.fn();
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    render(
+      <ActiveServicesTable
+        services={[arsService, usdService]}
+        onEdit={onEdit}
+      />,
+    );
+
+    const editButtons = screen.getAllByRole("button", { name: /^Editar / });
+    expect(editButtons).toHaveLength(2);
+    expect(editButtons[0]).toHaveAccessibleName("Editar Luz");
+    expect(editButtons[1]).toHaveAccessibleName("Editar Netflix");
+
+    fireEvent.click(editButtons[1]);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit).toHaveBeenCalledWith(usdService);
+  });
+
+  it("no muestra acciones de congelación, reactivación ni eliminación", () => {
+    render(
+      <ActiveServicesTable services={[arsService]} onEdit={vi.fn()} />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /congelar|reactivar|eliminar/i }),
+    ).not.toBeInTheDocument();
   });
 });

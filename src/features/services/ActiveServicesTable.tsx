@@ -8,9 +8,13 @@ import {
 
 type ActiveServicesTableProps = {
   services: ServiceRecordDto[];
+  onEdit: (service: ServiceRecordDto) => void;
 };
 
-export function ActiveServicesTable({ services }: ActiveServicesTableProps) {
+export function ActiveServicesTable({
+  services,
+  onEdit,
+}: ActiveServicesTableProps) {
   return (
     <div className="services-table-scroll">
       <table className="services-table" aria-label="Servicios activos">
@@ -23,6 +27,7 @@ export function ActiveServicesTable({ services }: ActiveServicesTableProps) {
             <th scope="col">Mi parte</th>
             <th scope="col">Notas</th>
             <th scope="col">Estado</th>
+            <th scope="col">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -41,6 +46,16 @@ export function ActiveServicesTable({ services }: ActiveServicesTableProps) {
               </td>
               <td>{formatNotes(service.notes)}</td>
               <td>{formatServiceStatus(service.status)}</td>
+              <td>
+                <button
+                  type="button"
+                  className="button button--secondary button--compact"
+                  aria-label={`Editar ${service.name}`}
+                  onClick={() => onEdit(service)}
+                >
+                  Editar
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

@@ -245,7 +245,7 @@ El estado congelado puede usar un badge neutro o ámbar en la vista donde se con
 
 ### 8.8 Diálogos y confirmaciones
 
-Cuando una operación definida requiera confirmación, usar un diálogo centrado, de ancho moderado, con título, explicación concreta y acciones claramente diferenciadas. Este apartado establece solo su apariencia; la necesidad y el momento de confirmar dependen de los requisitos.
+Cuando una operación definida requiera confirmación, usar un diálogo centrado, de ancho moderado, con título, explicación concreta y acciones claramente diferenciadas. El alta y la edición de servicios comparten la apariencia de un único diálogo centrado, con el título y el estado del selector de moneda que correspondan a cada operación. Este apartado establece solo su apariencia; la necesidad y el momento de confirmar dependen de los requisitos.
 
 ---
 
@@ -263,7 +263,7 @@ Prioridad visual:
 5. Acción para agregar un servicio y acciones por fila que correspondan a las operaciones definidas.
 6. Acceso visual a la consulta de servicios congelados, sin mezclarlos con los activos.
 
-La tabla debe representar los datos definidos en requisitos: servicio, costo total, personas que comparten, mi parte y notas. Las acciones de edición, congelación y eliminación pueden ubicarse en una columna compacta.
+La tabla debe representar los datos definidos en requisitos: servicio, costo total, personas que comparten, mi parte y notas. Las acciones de edición, congelación y eliminación pueden ubicarse en una columna compacta. La acción de alta puede ubicarse junto al título de la sección y la edición puede presentarse como acción por fila del mismo diálogo de formulario.
 
 No incluir renovación anual ni controles de reparto desigual. La parte personal es un valor calculado y debe distinguirse visualmente de los datos editables. El formulario incluye el selector explícito ARS/USD con ARS como valor predeterminado.
 

@@ -3,14 +3,18 @@ import { render, screen } from "@testing-library/react";
 
 import { App } from "./App";
 import {
+  createService,
   getAppStatus,
   listActiveServices,
+  updateService,
   type ServiceRecordDto,
 } from "./shared/api";
 
 vi.mock("./shared/api", () => ({
+  createService: vi.fn(),
   getAppStatus: vi.fn(),
   listActiveServices: vi.fn(),
+  updateService: vi.fn(),
 }));
 
 const mockedGetAppStatus = vi.mocked(getAppStatus);
@@ -95,5 +99,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("Luz")).toBeInTheDocument();
     expect(mockedListActiveServices).toHaveBeenCalledTimes(1);
+    expect(createService).not.toHaveBeenCalled();
+    expect(updateService).not.toHaveBeenCalled();
   });
 });
