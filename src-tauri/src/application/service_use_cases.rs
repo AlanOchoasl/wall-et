@@ -4,6 +4,7 @@ use crate::application::service_repository::{ServiceId, ServiceRecord, ServiceRe
 use crate::domain::error::DomainError;
 use crate::domain::money::Currency;
 use crate::domain::service::{Service, ServiceStatus};
+use crate::domain::service_totals::{ServiceTotals, calculate_service_totals};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreateServiceInput {
@@ -169,6 +170,21 @@ where
     repository.list_frozen(connection)
 }
 
+pub fn get_service_totals<R>(
+    connection: &Connection,
+    repository: &R,
+) -> Result<ServiceTotals, DomainError>
+where
+    R: ServiceRepository + ?Sized,
+{
+    let records = repository.list_active(connection)?;
+    let services: Vec<Service> = records
+        .iter()
+        .map(|record| record.service().clone())
+        .collect();
+    calculate_service_totals(&services)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,6 +198,16 @@ mod tests {
             name: name.to_owned(),
             total_cost: total_cost.to_owned(),
             currency: Currency::Ars,
+            shared_people_count,
+            notes: None,
+        }
+    }
+
+    fn usd_input(name: &str, total_cost: &str, shared_people_count: u32) -> CreateServiceInput {
+        CreateServiceInput {
+            name: name.to_owned(),
+            total_cost: total_cost.to_owned(),
+            currency: Currency::Usd,
             shared_people_count,
             notes: None,
         }
@@ -212,6 +238,62 @@ mod tests {
         match outcome {
             ReactivateServiceOutcome::Reactivated(record)
             | ReactivateServiceOutcome::AlreadyActive(record) => record,
+        }
+    }
+
+    struct FailingRepository;
+
+    impl FailingRepository {
+        fn error() -> DomainError {
+            DomainError::Persistence("repositorio no disponible".to_owned())
+        }
+    }
+
+    impl ServiceRepository for FailingRepository {
+        fn insert(
+            &self,
+            _connection: &Connection,
+            _service: &Service,
+        ) -> Result<ServiceRecord, DomainError> {
+            Err(Self::error())
+        }
+
+        fn get(
+            &self,
+            _connection: &Connection,
+            _id: ServiceId,
+        ) -> Result<Option<ServiceRecord>, DomainError> {
+            Err(Self::error())
+        }
+
+        fn update(
+            &self,
+            _connection: &Connection,
+            _id: ServiceId,
+            _service: &Service,
+        ) -> Result<ServiceRecord, DomainError> {
+            Err(Self::error())
+        }
+
+        fn delete(&self, _connection: &Connection, _id: ServiceId) -> Result<(), DomainError> {
+            Err(Self::error())
+        }
+
+        fn set_status(
+            &self,
+            _connection: &Connection,
+            _id: ServiceId,
+            _status: ServiceStatus,
+        ) -> Result<ServiceRecord, DomainError> {
+            Err(Self::error())
+        }
+
+        fn list_active(&self, _connection: &Connection) -> Result<Vec<ServiceRecord>, DomainError> {
+            Err(Self::error())
+        }
+
+        fn list_frozen(&self, _connection: &Connection) -> Result<Vec<ServiceRecord>, DomainError> {
+            Err(Self::error())
         }
     }
 
@@ -595,5 +677,224 @@ mod tests {
 
         let reactivate_error = reactivate_service(&connection, &REPOSITORY, id).unwrap_err();
         assert!(matches!(reactivate_error, DomainError::NotFound));
+    }
+
+    #[test]
+    fn totales_de_referencia_devuelve_costo_y_gasto_esperados() {
+        let connection = database::open_in_memory().unwrap();
+        create_service(&connection, &REPOSITORY, ars_input("A", "10000,00", 4)).unwrap();
+        create_service(&connection, &REPOSITORY, ars_input("B", "6000,00", 2)).unwrap();
+
+        let totals = get_service_totals(&connection, &REPOSITORY).unwrap();
+
+        assert_eq!(totals.ars().total_cost().minor_units(), 1_600_000);
+        assert_eq!(totals.ars().user_share().numerator_minor(), 550_000);
+        assert_eq!(totals.ars().user_share().denominator(), 1);
+        assert_eq!(totals.usd().total_cost().minor_units(), 0);
+        assert_eq!(totals.usd().user_share().numerator_minor(), 0);
+    }
+
+    #[test]
+    fn totales_sin_servicios_activos_devuelve_cero() {
+        let connection = database::open_in_memory().unwrap();
+
+        let totals = get_service_totals(&connection, &REPOSITORY).unwrap();
+
+        assert_eq!(totals.ars().total_cost().minor_units(), 0);
+        assert_eq!(totals.ars().total_cost().currency(), Currency::Ars);
+        assert_eq!(totals.ars().user_share().numerator_minor(), 0);
+        assert_eq!(totals.ars().user_share().denominator(), 1);
+        assert_eq!(totals.ars().user_share().currency(), Currency::Ars);
+        assert_eq!(totals.usd().total_cost().minor_units(), 0);
+        assert_eq!(totals.usd().total_cost().currency(), Currency::Usd);
+        assert_eq!(totals.usd().user_share().numerator_minor(), 0);
+        assert_eq!(totals.usd().user_share().denominator(), 1);
+        assert_eq!(totals.usd().user_share().currency(), Currency::Usd);
+    }
+
+    #[test]
+    fn totales_separados_por_moneda_sin_conversion() {
+        let connection = database::open_in_memory().unwrap();
+        create_service(&connection, &REPOSITORY, ars_input("Luz", "10000,00", 4)).unwrap();
+        create_service(&connection, &REPOSITORY, usd_input("Netflix", "20,00", 2)).unwrap();
+
+        let totals = get_service_totals(&connection, &REPOSITORY).unwrap();
+
+        assert_eq!(totals.ars().total_cost().minor_units(), 1_000_000);
+        assert_eq!(totals.ars().total_cost().currency(), Currency::Ars);
+        assert_eq!(totals.ars().user_share().numerator_minor(), 250_000);
+        assert_eq!(totals.ars().user_share().denominator(), 1);
+        assert_eq!(totals.usd().total_cost().minor_units(), 2_000);
+        assert_eq!(totals.usd().total_cost().currency(), Currency::Usd);
+        assert_eq!(totals.usd().user_share().numerator_minor(), 1_000);
+        assert_eq!(totals.usd().user_share().denominator(), 1);
+        assert_ne!(
+            totals.ars().total_cost().currency(),
+            totals.usd().total_cost().currency()
+        );
+    }
+
+    #[test]
+    fn totales_excluyen_servicios_congelados() {
+        let connection = database::open_in_memory().unwrap();
+        let active = create_service(
+            &connection,
+            &REPOSITORY,
+            ars_input("Spotify", "10000,00", 4),
+        )
+        .unwrap();
+        let frozen =
+            create_service(&connection, &REPOSITORY, ars_input("Luz", "5000,00", 2)).unwrap();
+        freeze_service(&connection, &REPOSITORY, frozen.id()).unwrap();
+
+        let totals = get_service_totals(&connection, &REPOSITORY).unwrap();
+
+        assert_eq!(active.service().status(), ServiceStatus::Active);
+        assert_eq!(totals.ars().total_cost().minor_units(), 1_000_000);
+        assert_eq!(totals.ars().user_share().numerator_minor(), 250_000);
+        assert_eq!(totals.ars().user_share().denominator(), 1);
+    }
+
+    #[test]
+    fn totales_se_actualizan_tras_eliminar_servicio() {
+        let connection = database::open_in_memory().unwrap();
+        let first =
+            create_service(&connection, &REPOSITORY, ars_input("A", "10000,00", 4)).unwrap();
+        create_service(&connection, &REPOSITORY, ars_input("B", "6000,00", 2)).unwrap();
+
+        let before = get_service_totals(&connection, &REPOSITORY).unwrap();
+        let outcome = delete_service(
+            &connection,
+            &REPOSITORY,
+            first.id(),
+            DeleteConfirmation::Confirmed,
+        )
+        .unwrap();
+        let after = get_service_totals(&connection, &REPOSITORY).unwrap();
+
+        assert!(matches!(outcome, DeleteServiceOutcome::Deleted));
+        assert_eq!(before.ars().total_cost().minor_units(), 1_600_000);
+        assert_eq!(before.ars().user_share().numerator_minor(), 550_000);
+        assert_eq!(after.ars().total_cost().minor_units(), 600_000);
+        assert_eq!(after.ars().user_share().numerator_minor(), 300_000);
+        assert_eq!(after.ars().user_share().denominator(), 1);
+    }
+
+    #[test]
+    fn totales_se_actualizan_tras_editar_costo_y_cantidad() {
+        let connection = database::open_in_memory().unwrap();
+        let created = create_service(
+            &connection,
+            &REPOSITORY,
+            ars_input("Spotify", "10000,00", 4),
+        )
+        .unwrap();
+
+        let before = get_service_totals(&connection, &REPOSITORY).unwrap();
+        update_service(
+            &connection,
+            &REPOSITORY,
+            created.id(),
+            update_input("Spotify", "12000,00", 4),
+        )
+        .unwrap();
+        let after_cost = get_service_totals(&connection, &REPOSITORY).unwrap();
+        update_service(
+            &connection,
+            &REPOSITORY,
+            created.id(),
+            update_input("Spotify", "12000,00", 3),
+        )
+        .unwrap();
+        let after_people = get_service_totals(&connection, &REPOSITORY).unwrap();
+
+        assert_eq!(before.ars().total_cost().minor_units(), 1_000_000);
+        assert_eq!(before.ars().user_share().numerator_minor(), 250_000);
+        assert_eq!(after_cost.ars().total_cost().minor_units(), 1_200_000);
+        assert_eq!(after_cost.ars().user_share().numerator_minor(), 300_000);
+        assert_eq!(after_people.ars().total_cost().minor_units(), 1_200_000);
+        assert_eq!(after_people.ars().user_share().numerator_minor(), 400_000);
+        assert_eq!(after_people.ars().user_share().denominator(), 1);
+    }
+
+    #[test]
+    fn totales_conservan_fracciones_exactas() {
+        let connection = database::open_in_memory().unwrap();
+        create_service(&connection, &REPOSITORY, ars_input("A", "100,00", 3)).unwrap();
+        create_service(&connection, &REPOSITORY, ars_input("B", "100,00", 3)).unwrap();
+
+        let totals = get_service_totals(&connection, &REPOSITORY).unwrap();
+
+        assert_eq!(totals.ars().total_cost().minor_units(), 20_000);
+        assert_eq!(totals.ars().user_share().numerator_minor(), 20_000);
+        assert_eq!(totals.ars().user_share().denominator(), 3);
+    }
+
+    #[test]
+    fn totales_de_servicio_sin_compartir_son_el_costo_completo() {
+        let connection = database::open_in_memory().unwrap();
+        create_service(&connection, &REPOSITORY, ars_input("Luz", "8000,00", 1)).unwrap();
+
+        let totals = get_service_totals(&connection, &REPOSITORY).unwrap();
+
+        assert_eq!(totals.ars().total_cost().minor_units(), 800_000);
+        assert_eq!(totals.ars().user_share().numerator_minor(), 800_000);
+        assert_eq!(totals.ars().user_share().denominator(), 1);
+    }
+
+    #[test]
+    fn totales_propagan_error_del_repositorio() {
+        let connection = database::open_in_memory().unwrap();
+
+        let error = get_service_totals(&connection, &FailingRepository).unwrap_err();
+
+        assert!(matches!(
+            error,
+            DomainError::Persistence(message) if message == "repositorio no disponible"
+        ));
+    }
+
+    #[test]
+    fn totales_propagan_desbordamiento_del_calculo() {
+        let connection = database::open_in_memory().unwrap();
+        create_service(
+            &connection,
+            &REPOSITORY,
+            ars_input("Max", "92233720368547758.07", 1),
+        )
+        .unwrap();
+        create_service(&connection, &REPOSITORY, ars_input("Uno", "0,01", 1)).unwrap();
+
+        let error = get_service_totals(&connection, &REPOSITORY).unwrap_err();
+
+        assert!(matches!(
+            error,
+            DomainError::ArithmeticOverflow {
+                field: "amount",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn totales_incluyen_servicio_reactivado() {
+        let connection = database::open_in_memory().unwrap();
+        let created =
+            create_service(&connection, &REPOSITORY, ars_input("Luz", "5000,00", 2)).unwrap();
+        freeze_service(&connection, &REPOSITORY, created.id()).unwrap();
+
+        let frozen_totals = get_service_totals(&connection, &REPOSITORY).unwrap();
+        let outcome = reactivate_service(&connection, &REPOSITORY, created.id()).unwrap();
+        let reactivated_totals = get_service_totals(&connection, &REPOSITORY).unwrap();
+
+        assert!(matches!(outcome, ReactivateServiceOutcome::Reactivated(_)));
+        assert_eq!(frozen_totals.ars().total_cost().minor_units(), 0);
+        assert_eq!(frozen_totals.ars().user_share().numerator_minor(), 0);
+        assert_eq!(reactivated_totals.ars().total_cost().minor_units(), 500_000);
+        assert_eq!(
+            reactivated_totals.ars().user_share().numerator_minor(),
+            250_000
+        );
+        assert_eq!(reactivated_totals.ars().user_share().denominator(), 1);
     }
 }
