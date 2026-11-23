@@ -178,7 +178,7 @@ Aunque no se implementan ahora, el diseño debe evitar bloquear:
 
 - Fórmula de rendimiento de cauciones, base anual y convención de días.
 - Regla de cálculo y aplicación de impuestos.
-- Precisión y redondeo de los resultados (D-028, pendiente): en fase 3 se conservan fracciones exactas en dominio, no se persisten resultados derivados redondeados y la presentación puede mostrar dos decimales solo como formato. Falta decidir cómo representar resultados fraccionarios y cómo resolver diferencias entre importes individuales mostrados y totales.
+- Precisión y redondeo de los resultados: definido en D-028.
 - Política de confirmación y registro de modificaciones solicitadas por OpenCode.
 - Estrategia de copias de seguridad y recuperación de SQLite.
 - Alcance de una futura versión móvil.

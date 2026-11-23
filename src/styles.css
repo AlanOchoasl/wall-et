@@ -20,4 +20,64 @@ body {
 
 .app-shell {
   padding: 24px;
+  display: grid;
+  gap: 24px;
+}
+
+.app-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  margin: 0;
+}
+
+.app-status div {
+  display: grid;
+  gap: 2px;
+}
+
+.app-status dt {
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+.app-status dd {
+  margin: 0;
+}
+
+.services-screen {
+  display: grid;
+  gap: 16px;
+}
+
+.services-table-scroll {
+  overflow-x: auto;
+}
+
+.services-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.services-table th,
+.services-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.24);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.services-table thead th {
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+.services-table tbody tr:hover {
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.services-table__number {
+  text-align: right;
 }

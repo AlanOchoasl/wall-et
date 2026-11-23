@@ -6,7 +6,7 @@ Restricciones que condicionan el diseño:
 
 - Stack aprobado (D-021): Tauri 2, React, TypeScript, Vite, Rust y SQLite.
 - Primera versión en ARS y USD, sin conversión, con servicios mensuales únicamente (D-024, D-025, D-027).
-- Varias reglas financieras están pendientes de aprobación: fórmula definitiva de rendimiento, convención de días, tratamiento impositivo definitivo y redondeo (D-028).
+- Varias reglas financieras están pendientes de aprobación: fórmula definitiva de rendimiento, convención de días y tratamiento impositivo definitivo.
 - El cálculo provisional de demostración (D-017, PV-01 a PV-03) está aprobado, siempre identificado como no definitivo, aislado y reemplazable; la ruta definitiva permanece no disponible.
 - La identidad visual está definida en `design.md`: acento púrpura, glassmorphism moderado, tipografía Inter, tokens de color para tema claro y oscuro.
 - La integración con OpenCode se limita a abrir una terminal externa (D-019, D-020).
@@ -136,7 +136,7 @@ Notas:
 - Cada importe lleva su moneda; las operaciones exigen monedas compatibles y los totales se agrupan por moneda.
 - Precisión interna: la parte del usuario y otros cocientes se calculan con un tipo racional de precisión explícita, nunca con `f32`/`f64`, y se conservan como fracción exacta en dominio durante la fase 3.
 - Persistencia: no se almacenan importes derivados redondeados.
-- Presentación: la interfaz puede mostrar dos decimales solo como formato; esto no fija una política de redondeo (D-028, pendiente). Falta decidir cómo representar resultados fraccionarios y cómo resolver diferencias entre importes individuales mostrados y totales. Mientras tanto, los resultados se etiquetan según su estado y no se presentan como definitivos (ver `financial-calculations`).
+- Presentación: se rige por D-028. Los resultados se etiquetan según su estado y no se presentan como definitivos cuando no lo estén (ver `financial-calculations`).
 
 ### D7. Punto único para las decisiones financieras pendientes
 
@@ -192,7 +192,7 @@ Aprobado por el usuario para una implementación provisional que desbloquea la v
 - `cobertura` compara `rendimiento_neto` con `gastos_del_mes`.
 - Todo resultado se etiqueta "provisional" en la interfaz y en los DTOs (`estado = provisional`).
 - Se implementa en un módulo `domain/calculations/provisional` separado de `domain/calculations/definitive`, con una interfaz común, para reemplazarlo sin tocar presentación ni persistencia.
-- Precisión interna: aritmética decimal/racional con fracción exacta. Persistencia: no se guardan resultados derivados redondeados. Presentación: puede mostrar dos decimales solo como formato, sin fijar una política de redondeo (D-028, pendiente).
+- Precisión interna: aritmética decimal/racional con fracción exacta. Persistencia: no se guardan resultados derivados redondeados. Presentación: se rige por D-028.
 - Al aprobarse la fórmula definitiva, el módulo provisional se retira y las pruebas de referencia se mueven al definitivo.
 
 ### D14. Monedas, precisión y alcance aprobado (D-023 a D-027)
@@ -201,7 +201,7 @@ Aprobado por el usuario para una implementación provisional que desbloquea la v
 - Cada servicio e inversión persiste su `currency_code`; los totales se calculan por moneda y las comparaciones exigen monedas compatibles.
 - La TNA se representa en basis points (1 bp = 0,01 pp); la conversión desde texto decimal se realiza en dominio sin punto flotante.
 - La primera versión administra solo renovación mensual; la renovación anual y el prorrateo quedan como funcionalidad futura (D-025).
-- `Mi parte` conserva la fracción exacta en dominio y no se persiste redondeada; la presentación puede mostrar dos decimales solo como formato. D-028 sigue pendiente: falta decidir cómo representar resultados fraccionarios y cómo resolver diferencias entre importes individuales mostrados y totales.
+- `Mi parte` conserva la fracción exacta en dominio y no se persiste redondeada; la presentación se rige por D-028.
 
 ## Risks / Trade-offs
 

@@ -49,7 +49,7 @@ En caso de contradicción, los requisitos y las decisiones confirmadas prevalece
 - Los servicios iniciales son mensuales; no agregar renovaciones anuales ni prorrateo anual, registrados como funcionalidad futura.
 - Los gastos compartidos se dividen siempre en partes iguales.
 - La cantidad de personas incluye al usuario.
-- `Mi parte` se calcula como costo total dividido por cantidad de personas, en partes iguales y conservando la fracción exacta en dominio; la política de redondeo de presentación sigue pendiente (D-028).
+- `Mi parte` se calcula como costo total dividido por cantidad de personas, en partes iguales y conservando la fracción exacta en dominio; su presentación se rige por D-028.
 - Mostrar por separado el costo completo de servicios activos y el importe correspondiente al usuario.
 - Congelar un servicio lo oculta de la tabla activa y lo excluye de los totales. La congelación es indefinida hasta que el usuario lo reactive; no eliminar sus datos.
 - Los resultados calculados no se editan directamente. Se modifican los datos de origen y se recalculan.

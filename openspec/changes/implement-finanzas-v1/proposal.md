@@ -9,7 +9,7 @@ El proyecto cuenta con requisitos, arquitectura y decisiones en etapa de definic
 - Se documenta el diseño técnico con el stack indicado como aprobado para esta propuesta: Tauri 2, React, TypeScript, Vite, Rust y SQLite.
 - Se produce un plan de tareas por fases, con dependencias, criterios de aceptación y trazabilidad a requisitos.
 - Se especifica un cálculo provisional de demostración aprobado (PV-01 a PV-03), explícitamente etiquetado y aislado de la ruta definitiva; sin inventar reglas financieras.
-- Se separan explícitamente las tareas bloqueadas por decisiones financieras pendientes (fórmula definitiva, convención de días, tratamiento impositivo definitivo y redondeo D-028).
+- Se separan explícitamente las tareas bloqueadas por decisiones financieras pendientes (fórmula definitiva, convención de días y tratamiento impositivo definitivo).
 - No se implementa código en este cambio: solo se generan artefactos de planificación.
 
 ## Capabilities

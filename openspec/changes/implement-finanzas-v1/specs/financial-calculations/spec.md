@@ -72,7 +72,7 @@ El sistema SHALL comparar y sumar importes solo cuando estén expresados en la m
 
 ### Requirement: Representar importes monetarios con precisión exacta
 
-El sistema SHALL almacenar y operar los importes monetarios sin pérdida de precisión por punto flotante binario. Los importes de origen MUST conservarse exactamente como fueron ingresados, con hasta dos decimales para ARS y USD. Durante la fase 3, la precisión interna MUST conservar las fracciones exactas sin redondeo anticipado y la persistencia MUST NOT almacenar importes derivados redondeados. La presentación MAY mostrar dos decimales solo como formato, sin que ello constituya una política de redondeo aprobada. D-028 sigue pendiente: falta decidir cómo representar resultados fraccionarios y cómo resolver diferencias entre importes individuales mostrados y totales.
+El sistema SHALL almacenar y operar los importes monetarios sin pérdida de precisión por punto flotante binario. Los importes de origen MUST conservarse exactamente como fueron ingresados, con hasta dos decimales para ARS y USD. Durante la fase 3, la precisión interna MUST conservar las fracciones exactas sin redondeo anticipado y la persistencia MUST NOT almacenar importes derivados redondeados. La presentación se rige por D-028.
 
 #### Scenario: Conservación exacta de un importe
 
@@ -81,8 +81,8 @@ El sistema SHALL almacenar y operar los importes monetarios sin pérdida de prec
 
 #### Scenario: División con resultado no entero
 
-- **WHEN** el usuario divide un costo total de 10000,00 entre 3 personas y la política de redondeo no está aprobada
-- **THEN** el sistema no redondea silenciosamente y no presenta el resultado como definitivo
+- **WHEN** el usuario divide un costo total de 10000,00 entre 3 personas
+- **THEN** el sistema no redondea ni trunca silenciosamente y presenta la división exacta según D-028
 
 #### Scenario: Operaciones sucesivas
 

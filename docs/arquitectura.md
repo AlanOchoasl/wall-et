@@ -172,6 +172,6 @@ La estructura podrá ajustarse a las convenciones de Tauri y Vite al crear el pr
 - Estrategia de backups y recuperación del archivo SQLite.
 - Modelo de historial/instantáneas por período.
 - Cotizaciones y conversión entre monedas; soporte de monedas adicionales.
-- Fórmula definitiva de cauciones, impuestos y redondeos.
+- Fórmula definitiva de cauciones y tratamiento impositivo.
 - Adaptador local seguro para operaciones de OpenCode sobre datos financieros.
 - Evaluación de una futura aplicación móvil.

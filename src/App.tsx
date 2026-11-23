@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { ServicesScreen } from "./features/services/ServicesScreen";
 import { getAppStatus, type AppStatus } from "./shared/api";
 
 export function App() {
@@ -58,6 +59,8 @@ export function App() {
       ) : null}
 
       {!status && !error ? <p>Cargando estado…</p> : null}
+
+      <ServicesScreen />
     </main>
   );
 }
