@@ -6,6 +6,10 @@ Aplicación personal de finanzas, inicialmente de escritorio y de funcionamiento
 
 El alcance inicial admite pesos argentinos (ARS) y dólares estadounidenses (USD) sin conversión entre ellos. La conversión de monedas y el historial financiero avanzado quedan reservados para futuras versiones.
 
+## Metodología de trabajo
+
+Antes de ejecutar cualquier tarea de desarrollo, leer y seguir obligatoriamente `WORKFLOW_TAREAS.md`.
+
 ## Antes de trabajar
 
 1. Leer `docs/requisitos.md`, `docs/arquitectura.md` y `docs/decisiones.md`.
