@@ -52,6 +52,8 @@ pub struct FinancialRoutesDto<T> {
 pub enum CoverageOutcomeDto {
     Covered,
     Deficit { amount: ExactMoneyDto },
+    IncompatibleCurrencies,
+    ZeroExpenses,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -157,6 +159,8 @@ impl From<&Coverage> for CoverageOutcomeDto {
             Coverage::Deficit { amount } => Self::Deficit {
                 amount: ExactMoneyDto::from(amount),
             },
+            Coverage::IncompatibleCurrencies => Self::IncompatibleCurrencies,
+            Coverage::ZeroExpenses => Self::ZeroExpenses,
         }
     }
 }
@@ -460,6 +464,26 @@ mod tests {
                     }
                 }
             })
+        );
+    }
+
+    #[test]
+    fn serializa_estados_de_cobertura_sin_veredicto() {
+        assert_eq!(
+            serde_json::to_value(CoverageOutcomeDto::IncompatibleCurrencies).unwrap(),
+            json!({ "outcome": "incompatible_currencies" })
+        );
+        assert_eq!(
+            serde_json::to_value(CoverageOutcomeDto::ZeroExpenses).unwrap(),
+            json!({ "outcome": "zero_expenses" })
+        );
+        assert_eq!(
+            CoverageOutcomeDto::from(&Coverage::IncompatibleCurrencies),
+            CoverageOutcomeDto::IncompatibleCurrencies
+        );
+        assert_eq!(
+            CoverageOutcomeDto::from(&Coverage::ZeroExpenses),
+            CoverageOutcomeDto::ZeroExpenses
         );
     }
 

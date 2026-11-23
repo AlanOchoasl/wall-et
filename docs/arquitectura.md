@@ -53,7 +53,7 @@ Coordina los casos de uso:
 Contiene entidades, validaciones y reglas financieras:
 - División igualitaria de servicios.
 - Cálculo provisional de rendimiento, aislado para poder reemplazarlo.
-- Comparación de cobertura.
+- Comparación de cobertura a partir de totales separados por moneda, con estados explícitos para gastos en cero y monedas incompatibles.
 - Validación de importes y cantidades.
 
 La fórmula definitiva de cauciones todavía no está definida. Los cálculos provisionales deben estar claramente separados de las reglas definitivas y no deben filtrarse a la interfaz como si fueran valores financieros oficiales.
@@ -111,7 +111,7 @@ La congelación es indefinida hasta que el usuario reactive el servicio. Los dat
 - `created_at`
 - `updated_at`
 
-Los campos de entrada comienzan en cero. La TNA persistida se expresa como entero en basis points en `tna_basis_points` (D-023); la conversión desde texto decimal se realiza en dominio. Los resultados de rendimiento y cobertura se calculan y no se editan directamente.
+Los campos de entrada comienzan en cero. La TNA persistida se expresa como entero en basis points en `tna_basis_points` (D-023); la conversión desde texto decimal se realiza en dominio. Los resultados de rendimiento y cobertura se calculan y no se editan directamente. La capa de aplicación obtiene una sola vez los totales de servicios activos por moneda y los entrega al dominio, que evalúa la cobertura sin reparar el cálculo en la interfaz.
 
 Las fórmulas PV-01 a PV-03 están aprobadas solo para la ruta provisional; no representan la fórmula financiera definitiva, que sigue pendiente de las decisiones correspondientes. El cálculo provisional debe poder reemplazarse sin modificar la estructura de presentación ni duplicar lógica.
 

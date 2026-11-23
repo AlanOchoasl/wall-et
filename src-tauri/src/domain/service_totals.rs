@@ -32,6 +32,13 @@ impl ServiceTotals {
     pub fn usd(&self) -> &CurrencyServiceTotals {
         &self.usd
     }
+
+    pub fn user_share(&self, currency: Currency) -> &ExactMoney {
+        match currency {
+            Currency::Ars => self.ars.user_share(),
+            Currency::Usd => self.usd.user_share(),
+        }
+    }
 }
 
 pub fn calculate_service_totals(services: &[Service]) -> Result<ServiceTotals, DomainError> {

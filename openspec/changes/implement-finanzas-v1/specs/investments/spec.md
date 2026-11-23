@@ -116,37 +116,42 @@ El sistema SHALL calcular el rendimiento neto restando al rendimiento bruto los 
 
 ### Requirement: Evaluar la cobertura del mes
 
-El sistema SHALL comparar el rendimiento neto con los gastos del mes solo cuando ambos estén en la misma moneda. Si el rendimiento neto es mayor o igual que los gastos del mes, MUST mostrar el texto "¡Sí cubre!". Si es menor, MUST mostrar "Déficit de: $[importe faltante]" con el importe expresado en la moneda de la inversión. Si las monedas no coinciden, MUST rechazar la comparación e informar que no puede operar con monedas diferentes. Cuando el rendimiento neto sea provisional, el veredicto MUST identificarse como provisional. Si el rendimiento neto no está disponible, el sistema MUST mostrar el estado de cobertura como no disponible y MUST NOT emitir un veredicto.
+El sistema SHALL evaluar la cobertura usando los totales de servicios activos separados por moneda y el rendimiento neto de la inversión, sin convertir importes. Cuando no existan gastos activos en ninguna moneda, MUST mostrar "Gastos en cero" y MUST NOT emitir veredicto. Cuando existan gastos no nulos en otra moneda o en ambas monedas, MUST mostrar "Monedas incompatibles" y MUST NOT calcular un déficit, convertir importes ni comparar parcialmente los gastos. Cuando solo existan gastos en la moneda de la inversión, si el rendimiento neto es mayor o igual que los gastos MUST mostrar "Cubierto"; si es menor, MUST mostrar "Déficit de: [importe faltante]" con código de moneda y fracción exacta según D-028. Cuando el rendimiento neto sea provisional, el resultado MUST identificarse como provisional. Si el rendimiento neto no está disponible, el sistema MUST mostrar el estado de cobertura como no disponible y MUST NOT emitir un veredicto.
 
 #### Scenario: Cobertura suficiente
 
-- **WHEN** el rendimiento neto disponible es 8000,00 y los gastos del mes son 5500,00
-- **THEN** el sistema muestra "¡Sí cubre!"
+- **WHEN** el rendimiento neto disponible es ARS 8000,00 y los gastos del mes son ARS 5500,00
+- **THEN** el sistema muestra "Cubierto"
 
 #### Scenario: Cobertura insuficiente
 
-- **WHEN** el rendimiento neto disponible es 4000,00 y los gastos del mes son 5500,00
-- **THEN** el sistema muestra "Déficit de: $1500,00"
+- **WHEN** el rendimiento neto disponible es ARS 4000,00 y los gastos del mes son ARS 5500,00
+- **THEN** el sistema muestra "Déficit de: ARS 1500,00"
+
+#### Scenario: Cobertura insuficiente con fracción exacta
+
+- **WHEN** los gastos del mes son ARS 100,00 compartidos entre tres personas y el rendimiento neto disponible es ARS 0,00
+- **THEN** el sistema muestra "Déficit de: ARS 100,00 ÷ 3"
 
 #### Scenario: Cobertura con monedas incompatibles
 
-- **WHEN** la inversión está en USD y los gastos del mes se derivan de servicios en ARS
-- **THEN** el sistema rechaza la comparación, informa que no puede operar con monedas diferentes y no emite veredicto
+- **WHEN** la inversión está en USD y existen gastos del mes en ARS
+- **THEN** el sistema muestra "Monedas incompatibles", no emite veredicto y no calcula un déficit
 
 #### Scenario: Cobertura con rendimiento provisional
 
 - **WHEN** el rendimiento neto es provisional y alcanza los gastos del mes
-- **THEN** el sistema muestra "¡Sí cubre!" identificado como provisional
+- **THEN** el sistema muestra "Cubierto" identificado como provisional
 
 #### Scenario: Cobertura no evaluable
 
 - **WHEN** el rendimiento neto no está disponible por una decisión financiera pendiente
-- **THEN** el sistema muestra la cobertura como no disponible y no muestra "¡Sí cubre!" ni un déficit
+- **THEN** el sistema muestra la cobertura como no disponible y no muestra "Cubierto" ni un déficit
 
 #### Scenario: Cobertura con gastos en cero
 
-- **WHEN** el rendimiento neto disponible es mayor o igual que 0 y los gastos del mes son 0,00
-- **THEN** el sistema muestra "¡Sí cubre!"
+- **WHEN** no existen gastos activos en ninguna moneda
+- **THEN** el sistema muestra "Gastos en cero"
 
 ### Requirement: Recalcular al cambiar datos de servicios o inversiones
 

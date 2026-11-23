@@ -6,7 +6,7 @@ use crate::application::investment_repository::{
 use crate::application::investment_use_cases::{
     self, CreateInvestmentInput, UpdateInvestmentInput,
 };
-use crate::application::monthly_expenses::get_monthly_expenses;
+use crate::application::monthly_expenses::get_service_totals;
 use crate::application::service_repository::ServiceRepository;
 use crate::domain::calculations::definitive::DefinitiveCalculator;
 use crate::domain::calculations::provisional::ProvisionalCalculator;
@@ -114,8 +114,8 @@ fn derive_details<S>(
 where
     S: ServiceRepository + ?Sized,
 {
-    let monthly_expenses =
-        get_monthly_expenses(connection, service_repository, investment.currency())?;
+    let service_totals = get_service_totals(connection, service_repository)?;
+    let monthly_expenses = service_totals.user_share(investment.currency()).clone();
 
     let gross_yield = FinancialResults {
         definitive: DefinitiveCalculator.gross_yield(investment)?,
@@ -126,8 +126,16 @@ where
         provisional: ProvisionalCalculator.net_yield(investment)?,
     };
     let coverage = FinancialResults {
-        definitive: DefinitiveCalculator.coverage(&net_yield.definitive, &monthly_expenses)?,
-        provisional: ProvisionalCalculator.coverage(&net_yield.provisional, &monthly_expenses)?,
+        definitive: DefinitiveCalculator.coverage(
+            investment.currency(),
+            &net_yield.definitive,
+            &service_totals,
+        )?,
+        provisional: ProvisionalCalculator.coverage(
+            investment.currency(),
+            &net_yield.provisional,
+            &service_totals,
+        )?,
     };
 
     Ok(InvestmentDerived {

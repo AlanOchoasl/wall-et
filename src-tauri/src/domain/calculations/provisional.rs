@@ -1,11 +1,11 @@
-use std::cmp::Ordering;
-
 use crate::domain::calculations::{
     CalculationReason, CalculationStatus, Coverage, FinancialCalculator, FinancialResult,
+    coverage_verdict,
 };
 use crate::domain::error::DomainError;
 use crate::domain::investment::Investment;
-use crate::domain::money::ExactMoney;
+use crate::domain::money::{Currency, ExactMoney};
+use crate::domain::service_totals::ServiceTotals;
 
 const TNA_SCALE: u128 = 10_000;
 const DAYS_BASIS: u128 = 365;
@@ -51,8 +51,9 @@ impl FinancialCalculator for ProvisionalCalculator {
 
     fn coverage(
         &self,
+        investment_currency: Currency,
         net_yield: &FinancialResult<ExactMoney>,
-        monthly_expenses: &ExactMoney,
+        monthly_expenses: &ServiceTotals,
     ) -> Result<FinancialResult<Coverage>, DomainError> {
         let status = net_yield.status();
         let reason = net_yield.reason();
@@ -66,12 +67,7 @@ impl FinancialCalculator for ProvisionalCalculator {
             }
         };
 
-        let verdict = match net_value.cmp_exact(monthly_expenses)? {
-            Ordering::Less => Coverage::Deficit {
-                amount: monthly_expenses.checked_sub(net_value)?,
-            },
-            Ordering::Equal | Ordering::Greater => Coverage::Covered,
-        };
+        let verdict = coverage_verdict(investment_currency, net_value, monthly_expenses)?;
 
         match status {
             CalculationStatus::Available => Ok(FinancialResult::Available(verdict)),
@@ -99,8 +95,12 @@ fn gross_numerator(investment: &Investment) -> Result<i128, DomainError> {
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::Ordering;
+
     use super::*;
-    use crate::domain::money::{Currency, Money};
+    use crate::domain::money::Money;
+    use crate::domain::service::Service;
+    use crate::domain::service_totals::calculate_service_totals;
 
     fn investment(capital: &str, tna: &str, term_days: &str, taxes: &str) -> Investment {
         Investment::new("2026-01", capital, tna, term_days, taxes).unwrap()
@@ -115,9 +115,42 @@ mod tests {
         ExactMoney::from_money(Money::from_minor_units(minor_units, Currency::Ars))
     }
 
+    fn amount(minor_units: i64) -> String {
+        let sign = if minor_units < 0 { "-" } else { "" };
+        let absolute = minor_units.unsigned_abs();
+        format!("{}{},{:02}", sign, absolute / 100, absolute % 100)
+    }
+
+    fn totals(ars_minor: i64, usd_minor: i64) -> ServiceTotals {
+        let mut services = Vec::new();
+
+        if ars_minor != 0 {
+            services.push(
+                Service::new_with_currency("ARS", &amount(ars_minor), Currency::Ars, 1, None)
+                    .unwrap(),
+            );
+        }
+
+        if usd_minor != 0 {
+            services.push(
+                Service::new_with_currency("USD", &amount(usd_minor), Currency::Usd, 1, None)
+                    .unwrap(),
+            );
+        }
+
+        calculate_service_totals(&services).unwrap()
+    }
+
     fn net_result(minor_units: i64) -> FinancialResult<ExactMoney> {
         FinancialResult::Provisional {
             value: ars(minor_units),
+            reason: CalculationReason::ApprovedDemoPv02,
+        }
+    }
+
+    fn net_result_usd(minor_units: i64) -> FinancialResult<ExactMoney> {
+        FinancialResult::Provisional {
+            value: ExactMoney::from_money(Money::from_minor_units(minor_units, Currency::Usd)),
             reason: CalculationReason::ApprovedDemoPv02,
         }
     }
@@ -223,10 +256,10 @@ mod tests {
     }
 
     #[test]
-    fn pv03_cubre_gastos() {
+    fn pv03_cubre_gastos_en_ars() {
         let calculator = ProvisionalCalculator;
         let result = calculator
-            .coverage(&net_result(800_000), &ars(550_000))
+            .coverage(Currency::Ars, &net_result(800_000), &totals(550_000, 0))
             .unwrap();
 
         assert_provisional(&result, CalculationReason::ApprovedDemoPv03);
@@ -234,10 +267,10 @@ mod tests {
     }
 
     #[test]
-    fn pv03_calcula_deficit() {
+    fn pv03_calcula_deficit_en_ars() {
         let calculator = ProvisionalCalculator;
         let result = calculator
-            .coverage(&net_result(400_000), &ars(550_000))
+            .coverage(Currency::Ars, &net_result(400_000), &totals(550_000, 0))
             .unwrap();
 
         assert_provisional(&result, CalculationReason::ApprovedDemoPv03);
@@ -251,23 +284,110 @@ mod tests {
     }
 
     #[test]
-    fn pv03_gastos_cero_cubren() {
+    fn pv03_cubre_gastos_en_usd() {
         let calculator = ProvisionalCalculator;
-        let result = calculator.coverage(&net_result(0), &ars(0)).unwrap();
+        let result = calculator
+            .coverage(Currency::Usd, &net_result_usd(800_000), &totals(0, 550_000))
+            .unwrap();
 
         assert_provisional(&result, CalculationReason::ApprovedDemoPv03);
         assert!(matches!(result.value(), Some(Coverage::Covered)));
     }
 
     #[test]
-    fn pv03_rechaza_monedas_distintas() {
+    fn pv03_calcula_deficit_en_usd() {
         let calculator = ProvisionalCalculator;
-        let usd_expenses = ExactMoney::from_money(Money::from_minor_units(550_000, Currency::Usd));
+        let result = calculator
+            .coverage(Currency::Usd, &net_result_usd(400_000), &totals(0, 550_000))
+            .unwrap();
+
+        assert_provisional(&result, CalculationReason::ApprovedDemoPv03);
+        match result.value() {
+            Some(Coverage::Deficit { amount }) => {
+                assert_eq!(amount.currency(), Currency::Usd);
+                assert_eq!(amount.numerator_minor(), 150_000);
+                assert_eq!(amount.denominator(), 1);
+            }
+            other => panic!("unexpected coverage: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn pv03_deficit_conserva_fraccion_exacta() {
+        let calculator = ProvisionalCalculator;
+        let shared = Service::new("Fraccion", "100,00", 3, None).unwrap();
+        let expenses = calculate_service_totals(std::slice::from_ref(&shared)).unwrap();
+        let result = calculator
+            .coverage(Currency::Ars, &net_result(0), &expenses)
+            .unwrap();
+
+        match result.value() {
+            Some(Coverage::Deficit { amount }) => {
+                assert_eq!(amount.numerator_minor(), 10_000);
+                assert_eq!(amount.denominator(), 3);
+                assert_eq!(amount.currency(), Currency::Ars);
+            }
+            other => panic!("unexpected coverage: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn pv03_gastos_en_cero_son_estado_diferenciado() {
+        let calculator = ProvisionalCalculator;
+        let result = calculator
+            .coverage(Currency::Ars, &net_result(0), &totals(0, 0))
+            .unwrap();
+
+        assert_provisional(&result, CalculationReason::ApprovedDemoPv03);
+        assert!(matches!(result.value(), Some(Coverage::ZeroExpenses)));
+    }
+
+    #[test]
+    fn pv03_gastos_solo_en_otra_moneda_son_incompatibles() {
+        let calculator = ProvisionalCalculator;
+        let result = calculator
+            .coverage(Currency::Ars, &net_result(800_000), &totals(0, 550_000))
+            .unwrap();
+
+        assert_provisional(&result, CalculationReason::ApprovedDemoPv03);
+        assert!(matches!(
+            result.value(),
+            Some(Coverage::IncompatibleCurrencies)
+        ));
+    }
+
+    #[test]
+    fn pv03_gastos_en_ambas_monedas_son_incompatibles() {
+        let calculator = ProvisionalCalculator;
+        let result = calculator
+            .coverage(
+                Currency::Ars,
+                &net_result(800_000),
+                &totals(550_000, 550_000),
+            )
+            .unwrap();
+
+        assert_provisional(&result, CalculationReason::ApprovedDemoPv03);
+        assert!(matches!(
+            result.value(),
+            Some(Coverage::IncompatibleCurrencies)
+        ));
+    }
+
+    #[test]
+    fn pv03_rechaza_neto_en_otra_moneda_con_gastos_compatibles() {
+        let calculator = ProvisionalCalculator;
         let error = calculator
-            .coverage(&net_result(800_000), &usd_expenses)
+            .coverage(Currency::Ars, &net_result_usd(800_000), &totals(550_000, 0))
             .unwrap_err();
 
-        assert!(matches!(error, DomainError::CurrencyMismatch { .. }));
+        assert!(matches!(
+            error,
+            DomainError::CurrencyMismatch {
+                expected: "ARS",
+                found: "USD",
+            }
+        ));
     }
 
     #[test]
@@ -276,10 +396,26 @@ mod tests {
         let net_yield = FinancialResult::Unavailable {
             reason: CalculationReason::PendingNetYield,
         };
-        let result = calculator.coverage(&net_yield, &ars(550_000)).unwrap();
+        let result = calculator
+            .coverage(Currency::Ars, &net_yield, &totals(550_000, 0))
+            .unwrap();
 
         assert_eq!(result.status(), CalculationStatus::Unavailable);
         assert_eq!(result.reason(), Some(CalculationReason::PendingNetYield));
+        assert!(result.value().is_none());
+    }
+
+    #[test]
+    fn pv03_no_convierte_unavailable_en_gastos_cero() {
+        let calculator = ProvisionalCalculator;
+        let net_yield = FinancialResult::Unavailable {
+            reason: CalculationReason::PendingNetYield,
+        };
+        let result = calculator
+            .coverage(Currency::Ars, &net_yield, &totals(0, 0))
+            .unwrap();
+
+        assert_eq!(result.status(), CalculationStatus::Unavailable);
         assert!(result.value().is_none());
     }
 

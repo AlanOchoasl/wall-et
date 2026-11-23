@@ -189,7 +189,7 @@ Aprobado por el usuario para una implementación provisional que desbloquea la v
 
 - `rendimiento_bruto = capital × (TNA / 100) × (plazo_días / 365)` — interés simple, base 365, sin capitalización.
 - `rendimiento_neto = rendimiento_bruto − impuestos` — impuestos como importe absoluto ingresado manualmente.
-- `cobertura` compara `rendimiento_neto` con `gastos_del_mes`.
+- `cobertura` compara `rendimiento_neto` con los gastos del mes de la moneda de la inversión, usando totales separados por moneda; no convierte importes y distingue `Cubierto`, `Déficit de: [importe exacto]`, `Gastos en cero` y `Monedas incompatibles`.
 - Todo resultado se etiqueta "provisional" en la interfaz y en los DTOs (`estado = provisional`).
 - Se implementa en un módulo `domain/calculations/provisional` separado de `domain/calculations/definitive`, con una interfaz común, para reemplazarlo sin tocar presentación ni persistencia.
 - Precisión interna: aritmética decimal/racional con fracción exacta. Persistencia: no se guardan resultados derivados redondeados. Presentación: se rige por D-028.

@@ -1,7 +1,8 @@
 use crate::domain::calculations::{CalculationReason, FinancialCalculator, FinancialResult};
 use crate::domain::error::DomainError;
 use crate::domain::investment::Investment;
-use crate::domain::money::ExactMoney;
+use crate::domain::money::{Currency, ExactMoney};
+use crate::domain::service_totals::ServiceTotals;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DefinitiveCalculator;
@@ -27,8 +28,9 @@ impl FinancialCalculator for DefinitiveCalculator {
 
     fn coverage(
         &self,
+        _investment_currency: Currency,
         _net_yield: &FinancialResult<ExactMoney>,
-        _monthly_expenses: &ExactMoney,
+        _monthly_expenses: &ServiceTotals,
     ) -> Result<FinancialResult<crate::domain::calculations::Coverage>, DomainError> {
         Ok(FinancialResult::Unavailable {
             reason: CalculationReason::PendingNetYield,
@@ -40,14 +42,16 @@ impl FinancialCalculator for DefinitiveCalculator {
 mod tests {
     use super::*;
     use crate::domain::calculations::{CalculationStatus, Coverage};
-    use crate::domain::money::{Currency, Money};
+    use crate::domain::service::Service;
+    use crate::domain::service_totals::calculate_service_totals;
 
     fn investment() -> Investment {
         Investment::new("2026-01", "1000,00", "10", "30", "0").unwrap()
     }
 
-    fn expenses() -> ExactMoney {
-        ExactMoney::from_money(Money::from_minor_units(50_000, Currency::Ars))
+    fn totals() -> ServiceTotals {
+        let service = Service::new("Gasto", "500,00", 1, None).unwrap();
+        calculate_service_totals(std::slice::from_ref(&service)).unwrap()
     }
 
     fn assert_unavailable<T>(result: FinancialResult<T>, reason: CalculationReason) {
@@ -74,7 +78,7 @@ mod tests {
     fn cobertura_definitiva_no_disponible() {
         let net_yield = DefinitiveCalculator.net_yield(&investment()).unwrap();
         let result = DefinitiveCalculator
-            .coverage(&net_yield, &expenses())
+            .coverage(Currency::Ars, &net_yield, &totals())
             .unwrap();
 
         assert_unavailable(result, CalculationReason::PendingNetYield);
@@ -106,7 +110,7 @@ mod tests {
             reason: CalculationReason::PendingNetYield,
         };
         let result = DefinitiveCalculator
-            .coverage(&net_yield, &expenses())
+            .coverage(Currency::Ars, &net_yield, &totals())
             .unwrap();
 
         assert!(result.value().is_none());

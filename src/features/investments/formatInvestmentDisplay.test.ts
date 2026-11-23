@@ -113,17 +113,40 @@ describe("formatFinancialRoutes", () => {
 });
 
 describe("formatCoverageOutcome", () => {
-  it("usa una representación genérica para la cobertura", () => {
+  it("usa el texto definitivo para cobertura y déficit", () => {
     const deficit: CoverageOutcomeDto = {
       outcome: "deficit",
       amount: exact("150000", "1", "ARS"),
     };
 
     expect(formatCoverageOutcome({ outcome: "covered" })).toBe("Cubierto");
-    expect(formatCoverageOutcome(deficit)).toBe("Déficit: ARS 1500,00");
-    expect(formatCoverageOutcome(deficit)).not.toContain("Déficit de:");
+    expect(formatCoverageOutcome(deficit)).toBe("Déficit de: ARS 1500,00");
     expect(formatCoverageOutcome({ outcome: "covered" })).not.toBe(
       "¡Sí cubre!",
+    );
+  });
+
+  it("muestra código de moneda y fracción exacta en el déficit", () => {
+    expect(
+      formatCoverageOutcome({
+        outcome: "deficit",
+        amount: exact("10000", "3", "ARS"),
+      }),
+    ).toBe("Déficit de: ARS 100,00 ÷ 3");
+    expect(
+      formatCoverageOutcome({
+        outcome: "deficit",
+        amount: exact("25050", "1", "USD"),
+      }),
+    ).toBe("Déficit de: USD 250,50");
+  });
+
+  it("muestra estados sin veredicto", () => {
+    expect(
+      formatCoverageOutcome({ outcome: "incompatible_currencies" }),
+    ).toBe("Monedas incompatibles");
+    expect(formatCoverageOutcome({ outcome: "zero_expenses" })).toBe(
+      "Gastos en cero",
     );
   });
 });
@@ -147,7 +170,45 @@ describe("formatCoverageRoutes", () => {
     };
 
     expect(formatCoverageRoutes(routes)).toBe(
-      "Definitivo: no disponible · Provisional: Déficit: ARS 1500,00 (PV-03 · Provisional / demostración)",
+      "Definitivo: no disponible · Provisional: Déficit de: ARS 1500,00 (PV-03 · Provisional / demostración)",
+    );
+  });
+
+  it("no agrega sufijo disponible a los estados sin veredicto", () => {
+    const routes: FinancialRoutesDto<CoverageOutcomeDto> = {
+      definitive: {
+        status: "disponible",
+        reason: null,
+        value: { outcome: "incompatible_currencies" },
+      },
+      provisional: {
+        status: "disponible",
+        reason: null,
+        value: { outcome: "zero_expenses" },
+      },
+    };
+
+    expect(formatCoverageRoutes(routes)).toBe(
+      "Definitivo: Monedas incompatibles · Provisional: Gastos en cero",
+    );
+  });
+
+  it("conserva la etiqueta provisional en los estados sin veredicto", () => {
+    const routes: FinancialRoutesDto<CoverageOutcomeDto> = {
+      definitive: {
+        status: "no_disponible",
+        reason: "pending_net_yield",
+        value: null,
+      },
+      provisional: {
+        status: "provisional",
+        reason: "approved_demo_pv03",
+        value: { outcome: "zero_expenses" },
+      },
+    };
+
+    expect(formatCoverageRoutes(routes)).toBe(
+      "Definitivo: no disponible · Provisional: Gastos en cero (PV-03 · Provisional / demostración)",
     );
   });
 });

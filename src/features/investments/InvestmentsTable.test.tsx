@@ -149,6 +149,26 @@ const usdInvestment: InvestmentSummaryDto = {
   },
 };
 
+const noVerdictInvestment: InvestmentSummaryDto = {
+  ...usdInvestment,
+  record: { ...usdInvestment.record, id: "inv-sin-veredicto", month: "2026-03" },
+  derived: {
+    ...usdInvestment.derived,
+    coverage: {
+      definitive: {
+        status: "disponible",
+        reason: null,
+        value: { outcome: "incompatible_currencies" },
+      },
+      provisional: {
+        status: "disponible",
+        reason: null,
+        value: { outcome: "zero_expenses" },
+      },
+    },
+  },
+};
+
 describe("InvestmentsTable", () => {
   it("muestra las diez columnas definidas y el mes como encabezado de fila", () => {
     render(<InvestmentsTable investments={[arsInvestment]} />);
@@ -217,7 +237,7 @@ describe("InvestmentsTable", () => {
     ).toBeInTheDocument();
     expect(
       table.getByText(
-        "Definitivo: no disponible · Provisional: Déficit: ARS 1500,00 (PV-03 · Provisional / demostración)",
+        "Definitivo: no disponible · Provisional: Déficit de: ARS 1500,00 (PV-03 · Provisional / demostración)",
       ),
     ).toBeInTheDocument();
     expect(
@@ -231,6 +251,24 @@ describe("InvestmentsTable", () => {
       ),
     ).toBeInTheDocument();
     expect(table.queryByText(/Definitivo: (ARS|USD) 0,00/)).toBeNull();
+  });
+
+  it("muestra estados sin veredicto sin sufijo disponible", () => {
+    render(<InvestmentsTable investments={[noVerdictInvestment]} />);
+
+    const table = within(
+      screen.getByRole("table", { name: "Inversiones" }),
+    );
+
+    expect(
+      table.getByText(
+        "Definitivo: Monedas incompatibles · Provisional: Gastos en cero",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      table.queryByText(/Monedas incompatibles \(disponible\)/),
+    ).toBeNull();
+    expect(table.queryByText(/Gastos en cero \(disponible\)/)).toBeNull();
   });
 
   it("etiqueta PV-01 a PV-03 como provisionales y mantiene la ruta definitiva no disponible", () => {
@@ -252,7 +290,7 @@ describe("InvestmentsTable", () => {
     ).toBeInTheDocument();
     expect(
       table.getByText(
-        /Definitivo: no disponible · Provisional: Déficit: ARS 1500,00/,
+        /Definitivo: no disponible · Provisional: Déficit de: ARS 1500,00/,
       ),
     ).toBeInTheDocument();
     expect(
@@ -266,7 +304,7 @@ describe("InvestmentsTable", () => {
     ).toBeInTheDocument();
     expect(table.queryByText(/^Definitivo: (?!no disponible)/)).toBeNull();
     expect(table.queryByText(/¡Sí cubre!/)).toBeNull();
-    expect(table.queryByText(/Déficit de:/)).toBeNull();
+    expect(table.queryByText(/Déficit: ARS/)).toBeNull();
   });
 
   it("no permite editar los resultados derivados", () => {

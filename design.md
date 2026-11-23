@@ -227,8 +227,10 @@ Las tablas son el componente central de ambos módulos.
 
 ### 8.5 Indicador de cobertura
 
-- Resultado positivo: verde semántico y texto claro.
-- Déficit: rojo o ámbar semántico, con el importe faltante legible.
+- Resultado positivo: verde semántico y texto `Cubierto`.
+- Déficit: rojo o ámbar semántico, con `Déficit de: [importe exacto]` legible, código de moneda y fracción exacta cuando corresponda.
+- Gastos en cero y monedas incompatibles: texto `Gastos en cero` o `Monedas incompatibles`, sin veredicto ni importe faltante.
+- El sufijo `(disponible)` acompaña solo a `Cubierto` y `Déficit` cuando el estado general es disponible; los estados sin veredicto conservan la etiqueta provisional o no disponible de la ruta.
 - La etiqueta debe acompañar siempre al color; no comunicar el estado únicamente mediante color.
 - Cuando se muestren resultados del cálculo provisional, identificarlos visualmente como **provisionales / de demostración**. No presentarlos como resultados financieros definitivos.
 

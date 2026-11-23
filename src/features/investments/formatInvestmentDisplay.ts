@@ -65,15 +65,45 @@ export function formatFinancialRoutes<T>(
 }
 
 export function formatCoverageOutcome(outcome: CoverageOutcomeDto): string {
-  if (outcome.outcome === "covered") {
-    return "Cubierto";
+  switch (outcome.outcome) {
+    case "covered":
+      return "Cubierto";
+    case "deficit":
+      return `Déficit de: ${formatExactMoney(outcome.amount)}`;
+    case "incompatible_currencies":
+      return "Monedas incompatibles";
+    case "zero_expenses":
+      return "Gastos en cero";
+  }
+}
+
+function hasNoVerdict(outcome: CoverageOutcomeDto): boolean {
+  return (
+    outcome.outcome === "incompatible_currencies" || outcome.outcome === "zero_expenses"
+  );
+}
+
+function formatCoverageResult(
+  result: FinancialResultDto<CoverageOutcomeDto>,
+): string {
+  if (result.status === "no_disponible" || result.value === null) {
+    return UNAVAILABLE_LABEL;
   }
 
-  return `Déficit: ${formatExactMoney(outcome.amount)}`;
+  const text = formatCoverageOutcome(result.value);
+
+  if (hasNoVerdict(result.value) && result.status === "disponible") {
+    return text;
+  }
+
+  return `${text} (${formatStatusLabel(result)})`;
 }
 
 export function formatCoverageRoutes(
   routes: FinancialRoutesDto<CoverageOutcomeDto>,
 ): string {
-  return formatFinancialRoutes(routes, formatCoverageOutcome);
+  return [
+    `${ROUTE_LABELS.definitive}: ${formatCoverageResult(routes.definitive)}`,
+    `${ROUTE_LABELS.provisional}: ${formatCoverageResult(routes.provisional)}`,
+  ].join(" · ");
 }

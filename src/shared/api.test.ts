@@ -15,6 +15,7 @@ import {
   updateService,
   type CreateInvestmentInputDto,
   type CreateServiceInputDto,
+  type CoverageOutcomeDto,
   type InvestmentSummaryDto,
   type ServiceRecordDto,
   type ServiceTotalsDto,
@@ -62,6 +63,31 @@ const updateInput: UpdateServiceInputDto = {
   sharedPeopleCount: 4,
   notes: null,
 };
+
+describe("contrato de cobertura", () => {
+  it("acepta los cuatro resultados definidos en el DTO", () => {
+    const outcomes: CoverageOutcomeDto[] = [
+      { outcome: "covered" },
+      {
+        outcome: "deficit",
+        amount: {
+          numeratorMinor: "10000",
+          denominator: "3",
+          currencyCode: "ARS",
+        },
+      },
+      { outcome: "incompatible_currencies" },
+      { outcome: "zero_expenses" },
+    ];
+
+    expect(outcomes.map((outcome) => outcome.outcome)).toEqual([
+      "covered",
+      "deficit",
+      "incompatible_currencies",
+      "zero_expenses",
+    ]);
+  });
+});
 
 describe("servicios API", () => {
   beforeEach(() => {

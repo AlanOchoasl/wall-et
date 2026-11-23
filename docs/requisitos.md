@@ -107,9 +107,11 @@ Los resultados provisionales sirven para comprobar la interfaz y el flujo de dat
 
 #### Cobertura
 
-Comparar el rendimiento neto mostrado con los gastos del mes. La comparación requiere que ambos importes estén en la misma moneda; no se convierten importes:
-- Si el rendimiento alcanza o supera los gastos: `¡Sí cubre!`.
-- Si no alcanza: `Déficit de: $[importe faltante]`.
+Comparar el rendimiento neto mostrado con los gastos del mes aplicando D-031. La evaluación usa los totales de servicios activos separados por moneda y no convierte importes:
+- Si no hay gastos activos en ninguna moneda: `Gastos en cero`.
+- Si hay gastos no nulos en otra moneda o en ambas monedas: `Monedas incompatibles`, sin veredicto ni déficit.
+- Si solo hay gastos en la moneda de la inversión y el rendimiento alcanza o supera los gastos: `Cubierto`.
+- Si no alcanza: `Déficit de: [importe faltante]`, con código de moneda y fracción exacta según D-028.
 
 La cobertura de la primera versión se muestra con PV-03 mientras la ruta definitiva permanece pendiente. Debe quedar aislada para poder sustituirse por la fórmula definitiva.
 

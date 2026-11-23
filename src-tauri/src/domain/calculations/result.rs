@@ -76,6 +76,8 @@ impl<T> FinancialResult<T> {
 pub enum Coverage {
     Covered,
     Deficit { amount: ExactMoney },
+    IncompatibleCurrencies,
+    ZeroExpenses,
 }
 
 #[cfg(test)]

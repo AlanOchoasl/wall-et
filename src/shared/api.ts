@@ -87,7 +87,9 @@ export type FinancialRoutesDto<T> = {
 
 export type CoverageOutcomeDto =
   | { outcome: "covered" }
-  | { outcome: "deficit"; amount: ExactMoneyDto };
+  | { outcome: "deficit"; amount: ExactMoneyDto }
+  | { outcome: "incompatible_currencies" }
+  | { outcome: "zero_expenses" };
 
 export type InvestmentRecordDto = {
   id: string;

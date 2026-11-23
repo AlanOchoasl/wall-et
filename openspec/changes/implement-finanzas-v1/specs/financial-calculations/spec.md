@@ -63,12 +63,12 @@ El sistema SHALL comparar y sumar importes solo cuando estén expresados en la m
 #### Scenario: Comparación de cobertura
 
 - **WHEN** el sistema compara el rendimiento neto con los gastos del mes
-- **THEN** verifica que ambos importes tengan la misma moneda antes de emitir un resultado de cobertura
+- **THEN** usa los totales de gastos de la moneda de la inversión y verifica que no existan gastos no nulos en otras monedas antes de emitir un resultado de cobertura
 
 #### Scenario: Intento de comparar monedas distintas
 
-- **WHEN** el sistema recibe importes de monedas distintas para una misma comparación
-- **THEN** rechaza la comparación e informa que no puede operar con monedas diferentes
+- **WHEN** el dominio recibe un rendimiento neto cuya moneda no coincide con la moneda de los gastos compatibles de la inversión
+- **THEN** rechaza la comparación con un error de moneda y no emite un resultado de cobertura
 
 ### Requirement: Representar importes monetarios con precisión exacta
 

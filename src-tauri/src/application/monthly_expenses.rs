@@ -5,14 +5,15 @@ use crate::application::service_repository::ServiceRepository;
 use crate::domain::error::DomainError;
 use crate::domain::investment::Month;
 use crate::domain::money::{Currency, ExactMoney};
-use crate::domain::monthly_expenses::calculate_monthly_expenses;
 use crate::domain::service::Service;
+use crate::domain::service_totals::{ServiceTotals, calculate_service_totals};
 
 #[derive(Debug, Clone)]
 pub struct InvestmentMonthlyExpenses {
     month: Month,
     currency: Currency,
     amount: ExactMoney,
+    totals: ServiceTotals,
 }
 
 impl InvestmentMonthlyExpenses {
@@ -27,6 +28,26 @@ impl InvestmentMonthlyExpenses {
     pub const fn amount(&self) -> &ExactMoney {
         &self.amount
     }
+
+    pub const fn totals(&self) -> &ServiceTotals {
+        &self.totals
+    }
+}
+
+pub fn get_service_totals<R>(
+    connection: &Connection,
+    repository: &R,
+) -> Result<ServiceTotals, DomainError>
+where
+    R: ServiceRepository + ?Sized,
+{
+    let records = repository.list_active(connection)?;
+    let services: Vec<Service> = records
+        .iter()
+        .map(|record| record.service().clone())
+        .collect();
+
+    calculate_service_totals(&services)
 }
 
 pub fn get_monthly_expenses<R>(
@@ -37,13 +58,9 @@ pub fn get_monthly_expenses<R>(
 where
     R: ServiceRepository + ?Sized,
 {
-    let records = repository.list_active(connection)?;
-    let services: Vec<Service> = records
-        .iter()
-        .map(|record| record.service().clone())
-        .collect();
+    let totals = get_service_totals(connection, repository)?;
 
-    calculate_monthly_expenses(&services, currency)
+    Ok(totals.user_share(currency).clone())
 }
 
 pub fn get_investment_monthly_expenses<S, I>(
@@ -58,12 +75,14 @@ where
 {
     let record = investment_repository.get(connection, investment_id)?;
     let investment = record.investment();
-    let amount = get_monthly_expenses(connection, service_repository, investment.currency())?;
+    let totals = get_service_totals(connection, service_repository)?;
+    let amount = totals.user_share(investment.currency()).clone();
 
     Ok(InvestmentMonthlyExpenses {
         month: investment.month(),
         currency: investment.currency(),
         amount,
+        totals,
     })
 }
 
@@ -574,12 +593,11 @@ mod tests {
             service_input("B", "6000,00", Currency::Ars, 2),
         )
         .unwrap();
-        let expenses =
-            get_monthly_expenses(&connection, &SERVICE_REPOSITORY, Currency::Ars).unwrap();
+        let totals = get_service_totals(&connection, &SERVICE_REPOSITORY).unwrap();
         let net_yield = provisional_net(ExactMoney::from_parts(800_000, 1, Currency::Ars).unwrap());
 
         let coverage = ProvisionalCalculator
-            .coverage(&net_yield, &expenses)
+            .coverage(Currency::Ars, &net_yield, &totals)
             .unwrap();
 
         assert_eq!(coverage.status(), CalculationStatus::Provisional);
@@ -587,7 +605,42 @@ mod tests {
     }
 
     #[test]
-    fn cobertura_rechaza_gastos_derivados_en_otra_moneda() {
+    fn cobertura_detecta_gastos_derivados_en_otra_moneda() {
+        let connection = database::open_in_memory().unwrap();
+        create_service(
+            &connection,
+            &SERVICE_REPOSITORY,
+            service_input("A", "100,00", Currency::Usd, 1),
+        )
+        .unwrap();
+        let totals = get_service_totals(&connection, &SERVICE_REPOSITORY).unwrap();
+        let net_yield = provisional_net(ExactMoney::from_parts(800_000, 1, Currency::Ars).unwrap());
+
+        let coverage = ProvisionalCalculator
+            .coverage(Currency::Ars, &net_yield, &totals)
+            .unwrap();
+
+        assert!(matches!(
+            coverage.value(),
+            Some(Coverage::IncompatibleCurrencies)
+        ));
+    }
+
+    #[test]
+    fn cobertura_detecta_gastos_cero_derivados() {
+        let connection = database::open_in_memory().unwrap();
+        let totals = get_service_totals(&connection, &SERVICE_REPOSITORY).unwrap();
+        let net_yield = provisional_net(ExactMoney::from_parts(0, 1, Currency::Ars).unwrap());
+
+        let coverage = ProvisionalCalculator
+            .coverage(Currency::Ars, &net_yield, &totals)
+            .unwrap();
+
+        assert!(matches!(coverage.value(), Some(Coverage::ZeroExpenses)));
+    }
+
+    #[test]
+    fn cobertura_rechaza_neto_en_otra_moneda_con_totales_compatibles() {
         let connection = database::open_in_memory().unwrap();
         create_service(
             &connection,
@@ -595,19 +648,18 @@ mod tests {
             service_input("A", "10000,00", Currency::Ars, 4),
         )
         .unwrap();
-        let expenses =
-            get_monthly_expenses(&connection, &SERVICE_REPOSITORY, Currency::Ars).unwrap();
+        let totals = get_service_totals(&connection, &SERVICE_REPOSITORY).unwrap();
         let net_yield = provisional_net(ExactMoney::from_parts(800_000, 1, Currency::Usd).unwrap());
 
         let error = ProvisionalCalculator
-            .coverage(&net_yield, &expenses)
+            .coverage(Currency::Ars, &net_yield, &totals)
             .unwrap_err();
 
         assert!(matches!(
             error,
             DomainError::CurrencyMismatch {
-                expected: "USD",
-                found: "ARS",
+                expected: "ARS",
+                found: "USD",
             }
         ));
     }
@@ -615,14 +667,13 @@ mod tests {
     #[test]
     fn cobertura_no_disponible_no_emite_veredicto_con_gastos_derivados() {
         let connection = database::open_in_memory().unwrap();
-        let expenses =
-            get_monthly_expenses(&connection, &SERVICE_REPOSITORY, Currency::Ars).unwrap();
+        let totals = get_service_totals(&connection, &SERVICE_REPOSITORY).unwrap();
         let net_yield = FinancialResult::Unavailable {
             reason: CalculationReason::PendingNetYield,
         };
 
         let coverage = ProvisionalCalculator
-            .coverage(&net_yield, &expenses)
+            .coverage(Currency::Ars, &net_yield, &totals)
             .unwrap();
 
         assert_eq!(coverage.status(), CalculationStatus::Unavailable);
