@@ -89,35 +89,49 @@ body {
   }
 }
 
-.services-table-scroll {
+.services-table-scroll,
+.investments-table-scroll {
   overflow-x: auto;
 }
 
-.services-table {
+.services-table,
+.investments-table {
   width: 100%;
-  min-width: 900px;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
 
+.services-table {
+  min-width: 900px;
+}
+
+.investments-table {
+  min-width: 1240px;
+}
+
 .services-table th,
-.services-table td {
+.services-table td,
+.investments-table th,
+.investments-table td {
   padding: 12px 16px;
   border-bottom: 1px solid rgba(127, 127, 127, 0.24);
   text-align: left;
   white-space: nowrap;
 }
 
-.services-table thead th {
+.services-table thead th,
+.investments-table thead th {
   font-size: 12px;
   opacity: 0.72;
 }
 
-.services-table tbody tr:hover {
+.services-table tbody tr:hover,
+.investments-table tbody tr:hover {
   background: rgba(127, 127, 127, 0.08);
 }
 
-.services-table__number {
+.services-table__number,
+.investments-table__number {
   text-align: right;
 }
 
