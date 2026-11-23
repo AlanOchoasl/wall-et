@@ -53,17 +53,17 @@ El sistema SHALL producir el mismo resultado para los mismos datos de origen y l
 
 ### Requirement: Comparar únicamente importes de la misma moneda
 
-El sistema SHALL comparar y sumar importes solo cuando estén expresados en la misma moneda. En la primera versión todos los importes MUST ser ARS. El sistema MUST NOT convertir monedas ni sumar importes de monedas distintas.
+El sistema SHALL comparar y sumar importes solo cuando estén expresados en la misma moneda. En la primera versión los importes pueden estar en ARS o USD. El sistema MUST NOT convertir monedas, sumar importes de monedas distintas ni comparar una inversión con gastos de otra moneda; los totales MUST calcularse por moneda.
 
-#### Scenario: Suma de totales en ARS
+#### Scenario: Suma de totales por moneda
 
 - **WHEN** el sistema suma los costos de servicios activos
-- **THEN** suma únicamente importes en ARS y expresa el total en ARS
+- **THEN** suma únicamente importes de la misma moneda y expresa cada total en esa moneda
 
 #### Scenario: Comparación de cobertura
 
 - **WHEN** el sistema compara el rendimiento neto con los gastos del mes
-- **THEN** verifica que ambos importes estén en ARS antes de emitir un resultado de cobertura
+- **THEN** verifica que ambos importes tengan la misma moneda antes de emitir un resultado de cobertura
 
 #### Scenario: Intento de comparar monedas distintas
 
@@ -72,7 +72,7 @@ El sistema SHALL comparar y sumar importes solo cuando estén expresados en la m
 
 ### Requirement: Representar importes monetarios con precisión exacta
 
-El sistema SHALL almacenar y operar los importes monetarios sin pérdida de precisión por punto flotante binario. Los importes de origen MUST conservarse exactamente como fueron ingresados, con hasta dos decimales para ARS. La política de redondeo de resultados divisibles MUST aplicarse solo cuando esté aprobada.
+El sistema SHALL almacenar y operar los importes monetarios sin pérdida de precisión por punto flotante binario. Los importes de origen MUST conservarse exactamente como fueron ingresados, con hasta dos decimales para ARS y USD. Durante la fase 3, la precisión interna MUST conservar las fracciones exactas sin redondeo anticipado y la persistencia MUST NOT almacenar importes derivados redondeados. La presentación MAY mostrar dos decimales solo como formato, sin que ello constituya una política de redondeo aprobada. D-028 sigue pendiente: falta decidir cómo representar resultados fraccionarios y cómo resolver diferencias entre importes individuales mostrados y totales.
 
 #### Scenario: Conservación exacta de un importe
 
@@ -86,17 +86,22 @@ El sistema SHALL almacenar y operar los importes monetarios sin pérdida de prec
 
 #### Scenario: Operaciones sucesivas
 
-- **WHEN** el sistema realiza varias operaciones sobre importes en ARS
+- **WHEN** el sistema realiza varias operaciones sobre importes en ARS o USD sin mezclar monedas
 - **THEN** no acumula errores de representación binaria
 
 ### Requirement: Definir la fórmula de rendimiento de cauciones
 
-El sistema SHALL calcular el rendimiento bruto de una caución con una fórmula y una convención de días aprobadas explícitamente. Mientras esa decisión esté pendiente, la funcionalidad de rendimiento definitivo MUST permanecer deshabilitada y el sistema MUST NOT usar una fórmula provisional como si fuera definitiva.
+El sistema SHALL calcular el rendimiento bruto de una caución con una fórmula y una convención de días aprobadas explícitamente. Mientras esa decisión esté pendiente, la ruta de rendimiento definitivo MUST permanecer deshabilitada y devolver `no_disponible`; el sistema MUST NOT usar una fórmula provisional como si fuera definitiva. El cálculo provisional aprobado PV-01 se implementa en un módulo aislado y se etiqueta como `provisional`.
 
-#### Scenario: Decisión pendiente sin cálculo provisional
+#### Scenario: Decisión pendiente, ruta definitiva
 
-- **WHEN** no existe una decisión aprobada sobre fórmula y convención de días ni una fórmula provisional aprobada
-- **THEN** el sistema no calcula rendimiento bruto y lo informa como no disponible
+- **WHEN** se evalúa la ruta definitiva mientras no existe una decisión aprobada sobre fórmula y convención de días
+- **THEN** el sistema no calcula rendimiento bruto y lo informa como no disponible en esa ruta
+
+#### Scenario: Decisión pendiente con cálculo provisional aprobado
+
+- **WHEN** la fórmula definitiva está pendiente y existe el cálculo provisional aprobado PV-01
+- **THEN** el sistema calcula el rendimiento bruto con PV-01 en el módulo aislado y lo informa como `provisional`, no como definitivo
 
 #### Scenario: Fórmula definitiva aprobada
 
@@ -117,19 +122,24 @@ El sistema SHALL implementar cualquier cálculo provisional de demostración en 
 - **WHEN** el sistema muestra un rendimiento o una cobertura obtenidos con el cálculo provisional
 - **THEN** el valor se identifica como provisional en la tabla y en el indicador correspondiente
 
-#### Scenario: Fórmula provisional no aprobada
+#### Scenario: Fórmula provisional aprobada
 
-- **WHEN** no existe una fórmula provisional aprobada explícitamente
-- **THEN** el sistema no implementa ni muestra ningún cálculo provisional
+- **WHEN** existe el cálculo provisional aprobado PV-01
+- **THEN** el sistema lo implementa en el módulo aislado y lo identifica como provisional
 
 ### Requirement: Definir el tratamiento impositivo
 
-El sistema SHALL descontar del rendimiento bruto los impuestos aplicables según un tratamiento aprobado explícitamente. Mientras ese tratamiento esté pendiente, el sistema MUST NOT calcular el rendimiento neto y MUST conservar el impuesto ingresado como dato de origen.
+El sistema SHALL descontar del rendimiento bruto los impuestos aplicables según un tratamiento aprobado explícitamente. Mientras el tratamiento definitivo esté pendiente, la ruta definitiva MUST devolver `no_disponible` y el sistema MUST conservar el impuesto ingresado como dato de origen. El cálculo provisional aprobado PV-02 se implementa en el módulo aislado y se etiqueta como `provisional`.
 
-#### Scenario: Tratamiento pendiente
+#### Scenario: Tratamiento pendiente, ruta definitiva
 
-- **WHEN** no existe una decisión aprobada sobre el tratamiento impositivo
-- **THEN** el sistema no calcula rendimiento neto y lo informa como no disponible
+- **WHEN** se evalúa la ruta definitiva mientras no existe una decisión aprobada sobre el tratamiento impositivo
+- **THEN** el sistema no calcula rendimiento neto y lo informa como no disponible en esa ruta
+
+#### Scenario: Tratamiento pendiente con cálculo provisional aprobado
+
+- **WHEN** el tratamiento impositivo definitivo está pendiente y existe el cálculo provisional aprobado PV-02
+- **THEN** el sistema calcula el rendimiento neto con PV-02 en el módulo aislado y lo informa como `provisional`, no como definitivo
 
 #### Scenario: Tratamiento aprobado
 

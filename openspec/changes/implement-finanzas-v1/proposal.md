@@ -4,12 +4,12 @@ El proyecto cuenta con requisitos, arquitectura y decisiones en etapa de definic
 
 ## What Changes
 
-- Se especifica la primera versión funcional de la aplicación de escritorio: servicios recurrentes mensuales en ARS e inversiones en cauciones.
+- Se especifica la primera versión funcional de la aplicación de escritorio: servicios recurrentes mensuales en ARS o USD, sin conversión, e inversiones en cauciones.
 - Se define el comportamiento observable de cinco capacidades: servicios, inversiones, cálculos financieros, preferencias/navegación y lanzador de terminal para OpenCode.
 - Se documenta el diseño técnico con el stack indicado como aprobado para esta propuesta: Tauri 2, React, TypeScript, Vite, Rust y SQLite.
 - Se produce un plan de tareas por fases, con dependencias, criterios de aceptación y trazabilidad a requisitos.
-- Se especifica un cálculo provisional de demostración, explícitamente etiquetado y aislado, condicionado a la aprobación de su fórmula; sin inventar reglas financieras.
-- Se separan explícitamente las tareas bloqueadas por decisiones financieras pendientes (fórmula provisional y definitiva, convención de días, tratamiento impositivo, precisión y redondeo).
+- Se especifica un cálculo provisional de demostración aprobado (PV-01 a PV-03), explícitamente etiquetado y aislado de la ruta definitiva; sin inventar reglas financieras.
+- Se separan explícitamente las tareas bloqueadas por decisiones financieras pendientes (fórmula definitiva, convención de días, tratamiento impositivo definitivo y redondeo D-028).
 - No se implementa código en este cambio: solo se generan artefactos de planificación.
 
 ## Capabilities
@@ -26,8 +26,8 @@ Justificación de la separación: cada capacidad tiene un dueño de comportamien
 
 ## Impact
 
-- Documentación: se agregan artefactos OpenSpec; `docs/requisitos.md`, `docs/decisiones.md` y `docs/arquitectura.md` no se modifican en este cambio.
-- Alcance funcional nuevo: ninguno respecto de lo aprobado; se excluyen conversión multidivisa, servicios anuales, historial, backups, reportes, gráficos, buscadores, notificaciones y acceso de OpenCode a los datos.
+- Documentación: se agregan artefactos OpenSpec y se actualizan `docs/requisitos.md`, `docs/decisiones.md`, `docs/arquitectura.md`, `AGENTS.md` y `design.md` según D-023 a D-027.
+- Alcance funcional: ARS y USD admitidos desde v1 sin conversión (D-024/D-027); se excluyen conversión entre monedas, servicios anuales, historial, backups, reportes, gráficos, buscadores, notificaciones y acceso de OpenCode a los datos.
 - Técnico (cuando se implemente): proyecto Tauri 2 + React + TypeScript + Vite, backend Rust, base SQLite local con migraciones.
 - Riesgo principal: varias tareas de cálculo quedan bloqueadas hasta que se aprueben las decisiones financieras pendientes.
 
@@ -35,8 +35,8 @@ Justificación de la separación: cada capacidad tiene un dueño de comportamien
 
 Los documentos v0.2 del repositorio (`requisitos`, `decisiones`, `arquitectura`, `design.md`) son la base de esta propuesta y no contradicen el pedido. Se registran estas observaciones:
 
-1. **Cálculo provisional sin fórmula definida.** `docs/requisitos.md` §3 y D-017 permiten un cálculo o dato provisional de demostración, pero no definen su fórmula ni sus datos. Esta propuesta no inventa una regla: especifica que el cálculo provisional solo puede mostrarse si el usuario aprueba explícitamente su fórmula, siempre etiquetado como provisional y aislado de la implementación definitiva. Esa aprobación queda como tarea bloqueada (11.1).
-2. **Modelo de datos y moneda.** `docs/arquitectura.md` §5 modela `total_cost_ars` y no incluye un campo de moneda. El diseño de esta propuesta conserva un campo de moneda fijo en ARS para evitar una migración cuando se habilite la extensión futura, lo que §6 permite explícitamente ("mantener el diseño desacoplado para incorporar códigos de moneda"). No es una contradicción funcional.
+1. **Cálculo provisional con fórmula aprobada.** D-017 permitía un cálculo de demostración sin definir su fórmula. El usuario aprobó PV-01 a PV-03: interés simple con base 365, impuestos como importe absoluto y cobertura comparativa. El módulo provisional queda separado de la ruta definitiva, que sigue devolviendo `no_disponible` hasta que se apruebe la fórmula real.
+2. **Modelo de datos y moneda.** `docs/arquitectura.md` §5 modelaba `total_cost_ars` sin campo de moneda. D-024 reemplazó la restricción ARS exclusivo de D-004: la primera versión admite ARS y USD sin conversión, con selector explícito (D-027), moneda persistida en cada registro y totales separados por moneda. El esquema ya prevé `currency_code`, por lo que no se requiere una nueva migración.
 3. **D-015 y OpenCode.** `docs/decisiones.md` D-015 menciona que el usuario podrá actualizar precios mediante OpenCode cuando exista la integración. Esa integración está fuera del alcance (D-020); esta propuesta no la especifica.
 4. **Diseño visual.** `design.md` define identidad púrpura, glassmorphism moderado, tokens de color y tipografía Inter. Se toma exclusivamente como guía visual; no genera requisitos funcionales. La navegación se limita a Servicios e Inversiones y el botón de OpenCode se representa como apertura de terminal externa.
 5. **Supuestos menores** (a confirmar, sin impacto estructural): importes no negativos con hasta dos decimales; confirmación explícita antes de eliminar un servicio; tema claro como valor inicial si no hay preferencia guardada; una inversión por mes como caso de uso esperado, sin imponer unicidad mientras no se decida.

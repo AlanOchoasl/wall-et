@@ -6,12 +6,22 @@ Permite administrar los servicios recurrentes mensuales que el usuario comparte 
 
 ### Requirement: Registrar un servicio
 
-El sistema SHALL permitir crear un servicio con nombre, costo total, cantidad de personas que comparten el gasto y notas opcionales. La moneda de todo servicio MUST ser ARS en la primera versión. La parte del usuario MUST calcularse al crear el servicio y MUST NOT ingresarse manualmente.
+El sistema SHALL permitir crear un servicio con nombre, costo total, moneda ARS o USD seleccionable explícitamente, cantidad de personas que comparten el gasto y notas opcionales. La moneda predeterminada MUST ser ARS y MUST persistirse en cada servicio. No se realizan conversiones entre monedas. La parte del usuario MUST calcularse al crear el servicio y MUST NOT ingresarse manualmente.
 
 #### Scenario: Alta exitosa
 
 - **WHEN** el usuario ingresa nombre "Spotify", costo total 10000,00, cantidad de personas 4 y guarda
 - **THEN** el sistema crea el servicio con estado activo y muestra "Mi parte" igual a 2500,00
+
+#### Scenario: Alta con moneda predeterminada
+
+- **WHEN** el usuario guarda un servicio sin cambiar el selector de moneda
+- **THEN** el servicio queda registrado en ARS
+
+#### Scenario: Alta en dólares
+
+- **WHEN** el usuario selecciona USD e ingresa un costo total en dólares y guarda
+- **THEN** el servicio queda registrado en USD, se muestra con ese código de moneda y no se convierte su importe
 
 #### Scenario: Alta sin nombre
 
@@ -139,12 +149,17 @@ La tabla activa MUST mostrar únicamente servicios con estado activo. Los servic
 
 ### Requirement: Mostrar totales de servicios activos
 
-El sistema SHALL mostrar dos totales separados calculados sobre los servicios activos: el costo total de servicios y el gasto personal del usuario. Ambos totales MUST expresarse en ARS y MUST recalcularse cuando se crea, edita, elimina, congela o reactiva un servicio.
+El sistema SHALL mostrar dos totales separados calculados sobre los servicios activos: el costo total de servicios y el gasto personal del usuario. Ambos totales MUST calcularse por moneda (ARS o USD), MUST expresarse en la moneda correspondiente y MUST recalcularse cuando se crea, edita, elimina, congela o reactiva un servicio. No se suman importes de monedas distintas.
 
 #### Scenario: Totales con varios servicios
 
 - **WHEN** existen servicios activos con costos totales 10000,00 (4 personas) y 6000,00 (2 personas)
 - **THEN** el sistema muestra costo total de servicios 16000,00 y gasto personal 5500,00
+
+#### Scenario: Totales separados por moneda
+
+- **WHEN** existen servicios activos registrados en ARS y en USD
+- **THEN** el sistema muestra un total por moneda sin convertir ni sumar importes de monedas distintas
 
 #### Scenario: Totales sin servicios activos
 
@@ -158,7 +173,7 @@ El sistema SHALL mostrar dos totales separados calculados sobre los servicios ac
 
 ### Requirement: Validar los datos de un servicio
 
-El sistema SHALL validar los datos antes de persistir cualquier alta o edición. El nombre MUST tener al menos un carácter no vacío. El costo total MUST ser un importe válido en ARS no negativo con hasta dos decimales. La cantidad de personas MUST ser un entero mayor o igual a 1. Las notas MUST ser texto libre opcional.
+El sistema SHALL validar los datos antes de persistir cualquier alta o edición. El nombre MUST tener al menos un carácter no vacío. El costo total MUST ser un importe válido en ARS o USD, no negativo y con hasta dos decimales. La moneda MUST ser ARS o USD. La cantidad de personas MUST ser un entero mayor o igual a 1. Las notas MUST ser texto libre opcional.
 
 #### Scenario: Costo negativo
 
@@ -175,16 +190,21 @@ El sistema SHALL validar los datos antes de persistir cualquier alta o edición.
 - **WHEN** el usuario intenta guardar un servicio cuyo nombre contiene solo espacios
 - **THEN** el sistema rechaza la operación e indica que el nombre es obligatorio
 
-### Requirement: Limitar los servicios a mensuales en ARS
+### Requirement: Limitar los servicios a mensuales en ARS o USD
 
-En la primera versión, el sistema SHALL administrar únicamente servicios de periodicidad mensual y MUST NOT ofrecer un campo de periodicidad, renovación anual o moneda seleccionable. Todo servicio MUST registrarse en ARS.
+En la primera versión, el sistema SHALL administrar únicamente servicios de periodicidad mensual y MUST NOT ofrecer un campo de periodicidad ni de renovación anual. El formulario MUST ofrecer un selector explícito ARS/USD con ARS como valor predeterminado. Todo servicio MUST registrarse en la moneda seleccionada, sin conversión.
 
 #### Scenario: Sin campo de periodicidad
 
 - **WHEN** el usuario abre el formulario de alta o edición de un servicio
-- **THEN** el formulario no muestra campos de periodicidad, renovación anual ni selección de moneda
+- **THEN** el formulario no muestra campos de periodicidad ni de renovación anual
 
-#### Scenario: Servicio registrado en ARS
+#### Scenario: Selector de moneda con valor predeterminado
 
-- **WHEN** el usuario guarda un servicio
-- **THEN** el servicio queda registrado en ARS y se muestra con ese código de moneda
+- **WHEN** el usuario abre el formulario de alta de un servicio
+- **THEN** el selector muestra ARS como valor predeterminado y permite seleccionar USD
+
+#### Scenario: Servicio registrado con la moneda seleccionada
+
+- **WHEN** el usuario guarda un servicio con nombre, datos de origen válidos y moneda USD
+- **THEN** el servicio queda registrado en USD y se muestra con ese código de moneda, sin conversión de su importe

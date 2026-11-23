@@ -10,7 +10,7 @@
 - Separación clara entre interfaz, casos de uso, reglas de dominio y persistencia.
 - Cálculos centralizados y reutilizables.
 - Posibilidad de ampliar la aplicación gradualmente.
-- Mantener abierta la evolución futura hacia historial, conversión de monedas e integración avanzada con OpenCode, sin implementar esas funciones ahora.
+- Mantener abierta la evolución futura hacia historial, conversión entre ARS y USD e integración avanzada con OpenCode, sin implementar esas funciones ahora; ARS y USD están disponibles desde v1 sin conversión.
 
 ## 2. Stack tecnológico aprobado
 
@@ -87,14 +87,15 @@ Si en una etapa futura se habilitan operaciones sobre datos financieros, deberá
 
 - `id`
 - `name`
-- `total_cost_ars`
+- `total_cost`
+- `currency_code` (ARS o USD)
 - `shared_people_count`
 - `notes`
 - `status` (active/frozen)
 - `created_at`
 - `updated_at`
 
-`my_share` se calcula a partir de `total_cost_ars / shared_people_count`; no es un valor editable independiente.
+`my_share` se calcula a partir de `total_cost / shared_people_count` en la moneda del servicio; no es un valor editable independiente. El dominio conserva la fracción exacta sin redondeo anticipado.
 
 La congelación es indefinida hasta que el usuario reactive el servicio. Los datos del servicio congelado se conservan.
 
@@ -102,16 +103,17 @@ La congelación es indefinida hasta que el usuario reactive el servicio. Los dat
 
 - `id`
 - `month`
-- `capital_ars`
-- `tna`
+- `capital`
+- `currency_code` (ARS o USD)
+- `tna_basis_points`
 - `term_days`
 - `taxes`
 - `created_at`
 - `updated_at`
 
-Los campos de entrada comienzan en cero. Los resultados de rendimiento y cobertura se calculan y no se editan directamente.
+Los campos de entrada comienzan en cero. La TNA persistida se expresa como entero en basis points en `tna_basis_points` (D-023); la conversión desde texto decimal se realiza en dominio. Los resultados de rendimiento y cobertura se calculan y no se editan directamente.
 
-La fórmula financiera definitiva no forma parte de esta versión. El cálculo provisional debe poder reemplazarse sin modificar la estructura de presentación ni duplicar lógica.
+Las fórmulas PV-01 a PV-03 están aprobadas solo para la ruta provisional; no representan la fórmula financiera definitiva, que sigue pendiente de las decisiones correspondientes. El cálculo provisional debe poder reemplazarse sin modificar la estructura de presentación ni duplicar lógica.
 
 ### AppSettings
 
@@ -127,9 +129,9 @@ No es necesario construir ahora un sistema completo de auditoría o ChangeLog sa
 
 ## 6. Consideraciones de datos y dinero
 
-- Todos los importes de la primera versión se interpretan como pesos argentinos (ARS).
-- No almacenar ni convertir otras monedas en esta etapa.
-- Mantener el diseño suficientemente desacoplado para incorporar códigos de moneda y conversiones en el futuro.
+- Los importes de la primera versión se expresan en ARS o USD; cada importe y entidad monetaria conserva su moneda.
+- No se convierten monedas ni se suman o comparan importes de monedas distintas; los totales se calculan separadamente por moneda.
+- Mantener el diseño desacoplado para incorporar monedas adicionales y, en el futuro, conversiones y cotizaciones.
 - Utilizar tipos numéricos adecuados para importes monetarios; evitar cálculos financieros con punto flotante binario sin una estrategia explícita de precisión.
 - Definir y aplicar validaciones de datos en el backend.
 - Usar migraciones versionadas para cambios en el esquema.
@@ -169,7 +171,7 @@ La estructura podrá ajustarse a las convenciones de Tauri y Vite al crear el pr
 
 - Estrategia de backups y recuperación del archivo SQLite.
 - Modelo de historial/instantáneas por período.
-- Soporte de monedas y mecanismo de cotización.
+- Cotizaciones y conversión entre monedas; soporte de monedas adicionales.
 - Fórmula definitiva de cauciones, impuestos y redondeos.
 - Adaptador local seguro para operaciones de OpenCode sobre datos financieros.
 - Evaluación de una futura aplicación móvil.

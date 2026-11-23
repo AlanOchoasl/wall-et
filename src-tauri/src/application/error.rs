@@ -32,6 +32,18 @@ impl From<DomainError> for AppError {
             DomainError::Validation { field, message } => {
                 Self::new("validation", message).with_field(field)
             }
+            DomainError::CurrencyMismatch { expected, found } => Self::new(
+                "currency_mismatch",
+                format!(
+                    "Las monedas no son compatibles: se esperaba {expected} y se recibió {found}."
+                ),
+            )
+            .with_field("currency"),
+            DomainError::ArithmeticOverflow { field, operation } => Self::new(
+                "arithmetic_overflow",
+                format!("La operación {operation} superó el rango permitido."),
+            )
+            .with_field(field),
             DomainError::NotFound => {
                 Self::new("not_found", "No se encontró el recurso solicitado.")
             }
@@ -91,5 +103,29 @@ mod tests {
 
         assert_eq!(error.code, "validation");
         assert_eq!(error.field.as_deref(), Some("sharedPeopleCount"));
+    }
+
+    #[test]
+    fn mapea_moneda_incompatible_con_campo() {
+        let error = AppError::from(DomainError::currency_mismatch("ARS", "USD"));
+
+        assert_eq!(error.code, "currency_mismatch");
+        assert_eq!(error.field.as_deref(), Some("currency"));
+        assert_eq!(
+            error.message,
+            "Las monedas no son compatibles: se esperaba ARS y se recibió USD."
+        );
+    }
+
+    #[test]
+    fn mapea_desbordamiento_con_campo() {
+        let error = AppError::from(DomainError::arithmetic_overflow("amount", "suma"));
+
+        assert_eq!(error.code, "arithmetic_overflow");
+        assert_eq!(error.field.as_deref(), Some("amount"));
+        assert_eq!(
+            error.message,
+            "La operación suma superó el rango permitido."
+        );
     }
 }

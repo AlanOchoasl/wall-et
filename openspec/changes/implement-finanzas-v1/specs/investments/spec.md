@@ -6,7 +6,7 @@ Permite registrar inversiones en cauciones asociadas a un mes, capturar sus dato
 
 ### Requirement: Registrar una inversión asociada a un mes
 
-El sistema SHALL permitir crear una inversión indicando mes, capital invertido, TNA, plazo en días e impuestos. Todos los campos de entrada MUST comenzar en cero al abrir un formulario de alta. La inversión MUST quedar asociada al mes indicado y MUST registrarse en ARS.
+El sistema SHALL permitir crear una inversión indicando mes, moneda ARS o USD seleccionable explícitamente, capital invertido, TNA, plazo en días e impuestos. La moneda predeterminada MUST ser ARS y MUST persistirse en cada inversión. No se realizan conversiones entre monedas. Todos los campos numéricos de entrada MUST comenzar en cero al abrir un formulario de alta. La inversión MUST quedar asociada al mes indicado.
 
 #### Scenario: Alta exitosa
 
@@ -17,6 +17,16 @@ El sistema SHALL permitir crear una inversión indicando mes, capital invertido,
 
 - **WHEN** el usuario abre el formulario de alta de una inversión
 - **THEN** los campos capital, TNA, plazo e impuestos muestran 0 como valor inicial
+
+#### Scenario: Moneda predeterminada
+
+- **WHEN** el usuario abre el formulario de alta sin cambiar el selector de moneda
+- **THEN** el selector muestra ARS y la inversión queda registrada en ARS
+
+#### Scenario: Alta en dólares
+
+- **WHEN** el usuario selecciona USD e ingresa los datos en dólares y guarda
+- **THEN** la inversión queda registrada en USD, se muestra con ese código de moneda y no se convierte su importe
 
 #### Scenario: Mes obligatorio
 
@@ -68,17 +78,17 @@ El sistema SHALL calcular los gastos del mes de cada inversión como la suma de 
 
 ### Requirement: Derivar el rendimiento bruto
 
-El sistema SHALL calcular el rendimiento bruto a partir del capital invertido, la TNA y el plazo en días. Con la fórmula definitiva aprobada, MUST usar exclusivamente esa fórmula y su convención de días. Mientras la fórmula definitiva no esté aprobada, el sistema MAY mostrar un cálculo provisional de demostración solo si su fórmula fue aprobada explícitamente; ese resultado MUST identificarse como provisional y MUST NOT presentarse como definitivo. Sin fórmula provisional aprobada, el sistema MUST mostrar el rendimiento bruto como no disponible.
+El sistema SHALL calcular el rendimiento bruto a partir del capital invertido, la TNA y el plazo en días. Con la fórmula definitiva aprobada, MUST usar exclusivamente esa fórmula y su convención de días. Mientras la fórmula definitiva no esté aprobada, la ruta definitiva MUST devolver `no_disponible`. El cálculo provisional aprobado PV-01 se implementa en el módulo aislado, se identifica como provisional y MUST NOT presentarse como definitivo.
 
 #### Scenario: Fórmula definitiva pendiente con cálculo provisional aprobado
 
-- **WHEN** la fórmula definitiva no está aprobada y el usuario aprobó una fórmula provisional de demostración
+- **WHEN** la fórmula definitiva no está aprobada y existe el cálculo provisional aprobado PV-01
 - **THEN** la inversión muestra el rendimiento bruto identificado como provisional y no como resultado definitivo
 
-#### Scenario: Fórmula definitiva pendiente sin cálculo provisional aprobado
+#### Scenario: Fórmula definitiva pendiente, ruta definitiva
 
-- **WHEN** la fórmula definitiva no está aprobada y no existe una fórmula provisional aprobada
-- **THEN** la inversión muestra el rendimiento bruto como no disponible y no presenta ningún valor calculado
+- **WHEN** se evalúa la ruta definitiva mientras la fórmula definitiva sigue pendiente
+- **THEN** la inversión muestra el rendimiento bruto como no disponible y no presenta ningún valor definitivo calculado
 
 #### Scenario: Fórmula definitiva aprobada
 
@@ -87,16 +97,16 @@ El sistema SHALL calcular el rendimiento bruto a partir del capital invertido, l
 
 ### Requirement: Derivar el rendimiento neto
 
-El sistema SHALL calcular el rendimiento neto restando al rendimiento bruto los impuestos correspondientes al período, según el tratamiento impositivo que se apruebe. Mientras el tratamiento impositivo no esté aprobado, el sistema MAY mostrar un rendimiento neto provisional solo si el cálculo provisional y el tratamiento aplicado fueron aprobados explícitamente; ese resultado MUST identificarse como provisional. Sin aprobación, el sistema MUST mostrar el rendimiento neto como no disponible. El valor de impuestos ingresado manualmente MUST conservarse como dato de origen.
+El sistema SHALL calcular el rendimiento neto restando al rendimiento bruto los impuestos correspondientes al período, según el tratamiento impositivo que se apruebe. Mientras el tratamiento definitivo no esté aprobado, la ruta definitiva MUST devolver `no_disponible`. El cálculo provisional aprobado PV-02 se implementa en el módulo aislado y todo resultado MUST identificarse como provisional. El valor de impuestos ingresado manualmente MUST conservarse como dato de origen.
 
-#### Scenario: Tratamiento impositivo pendiente sin cálculo provisional aprobado
+#### Scenario: Tratamiento impositivo pendiente, ruta definitiva
 
-- **WHEN** la decisión sobre el tratamiento impositivo no está aprobada y no existe un cálculo provisional aprobado
-- **THEN** la inversión muestra el rendimiento neto como no disponible
+- **WHEN** se evalúa la ruta definitiva mientras el tratamiento impositivo definitivo sigue pendiente
+- **THEN** la inversión muestra el rendimiento neto como no disponible en esa ruta
 
 #### Scenario: Rendimiento neto provisional
 
-- **WHEN** el tratamiento impositivo definitivo no está aprobado y existe un cálculo provisional aprobado
+- **WHEN** el tratamiento impositivo definitivo no está aprobado y existe el cálculo provisional aprobado PV-02
 - **THEN** la inversión muestra el rendimiento neto identificado como provisional
 
 #### Scenario: Conservación del impuesto ingresado
@@ -106,7 +116,7 @@ El sistema SHALL calcular el rendimiento neto restando al rendimiento bruto los 
 
 ### Requirement: Evaluar la cobertura del mes
 
-El sistema SHALL comparar el rendimiento neto con los gastos del mes. Si el rendimiento neto es mayor o igual que los gastos del mes, MUST mostrar el texto "¡Sí cubre!". Si es menor, MUST mostrar "Déficit de: $[importe faltante]" con el importe expresado en ARS. Cuando el rendimiento neto sea provisional, el veredicto MUST identificarse como provisional. Si el rendimiento neto no está disponible, el sistema MUST mostrar el estado de cobertura como no disponible y MUST NOT emitir un veredicto.
+El sistema SHALL comparar el rendimiento neto con los gastos del mes solo cuando ambos estén en la misma moneda. Si el rendimiento neto es mayor o igual que los gastos del mes, MUST mostrar el texto "¡Sí cubre!". Si es menor, MUST mostrar "Déficit de: $[importe faltante]" con el importe expresado en la moneda de la inversión. Si las monedas no coinciden, MUST rechazar la comparación e informar que no puede operar con monedas diferentes. Cuando el rendimiento neto sea provisional, el veredicto MUST identificarse como provisional. Si el rendimiento neto no está disponible, el sistema MUST mostrar el estado de cobertura como no disponible y MUST NOT emitir un veredicto.
 
 #### Scenario: Cobertura suficiente
 
@@ -117,6 +127,11 @@ El sistema SHALL comparar el rendimiento neto con los gastos del mes. Si el rend
 
 - **WHEN** el rendimiento neto disponible es 4000,00 y los gastos del mes son 5500,00
 - **THEN** el sistema muestra "Déficit de: $1500,00"
+
+#### Scenario: Cobertura con monedas incompatibles
+
+- **WHEN** la inversión está en USD y los gastos del mes se derivan de servicios en ARS
+- **THEN** el sistema rechaza la comparación, informa que no puede operar con monedas diferentes y no emite veredicto
 
 #### Scenario: Cobertura con rendimiento provisional
 
@@ -149,7 +164,7 @@ El sistema SHALL recalcular los resultados derivados de una inversión cuando ca
 
 ### Requirement: Validar los datos de una inversión
 
-El sistema SHALL validar los datos antes de persistir cualquier alta o edición. El mes MUST ser obligatorio y respetar el formato año-mes. El capital, la TNA y los impuestos MUST ser valores numéricos no negativos. El plazo MUST ser un entero no negativo expresado en días.
+El sistema SHALL validar los datos antes de persistir cualquier alta o edición. El mes MUST ser obligatorio y respetar el formato año-mes. La moneda MUST ser ARS o USD. El capital y los impuestos MUST ser importes no negativos de hasta dos decimales en la moneda seleccionada. La TNA MUST ingresarse como texto decimal no negativo de hasta dos decimales y convertirse en basis points según D-023. El plazo MUST ser un entero no negativo expresado en días.
 
 #### Scenario: Capital negativo
 
@@ -166,14 +181,19 @@ El sistema SHALL validar los datos antes de persistir cualquier alta o edición.
 - **WHEN** el usuario intenta guardar una inversión con TNA "treinta"
 - **THEN** el sistema rechaza la operación e informa que la TNA debe ser un valor numérico
 
+#### Scenario: Conversión de TNA a basis points
+
+- **WHEN** el usuario ingresa TNA "25,50" y guarda la inversión
+- **THEN** el sistema persiste 2550 basis points y muestra el valor como 25,50 %, sin usar punto flotante binario
+
 ### Requirement: Presentar la tabla de inversiones
 
-El sistema SHALL mostrar las inversiones en una tabla donde cada fila representa una inversión asociada a un mes e incluye mes, capital, TNA, plazo, impuestos, rendimiento bruto, gastos del mes, rendimiento neto y cobertura. Los campos derivados MUST mostrarse de solo lectura y MUST identificarse como no disponibles cuando corresponda.
+El sistema SHALL mostrar las inversiones en una tabla donde cada fila representa una inversión asociada a un mes e incluye mes, moneda, capital, TNA, plazo, impuestos, rendimiento bruto, gastos del mes, rendimiento neto y cobertura. Los campos derivados MUST mostrarse de solo lectura y MUST identificarse como no disponibles en la ruta definitiva cuando corresponda.
 
-#### Scenario: Fila con resultados no disponibles
+#### Scenario: Fila con resultados definitivos no disponibles
 
-- **WHEN** existe una inversión con datos de origen válidos, las decisiones financieras están pendientes y no existe un cálculo provisional aprobado
-- **THEN** la fila muestra los datos de origen y muestra rendimiento bruto, rendimiento neto y cobertura como no disponibles
+- **WHEN** existe una inversión con datos de origen válidos y se evalúa la ruta definitiva mientras las decisiones financieras siguen pendientes
+- **THEN** la fila muestra los datos de origen y muestra rendimiento bruto, rendimiento neto y cobertura como no disponibles en esa ruta
 
 #### Scenario: Fila con resultados provisionales
 

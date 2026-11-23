@@ -4,7 +4,7 @@
 
 Aplicación personal de finanzas, inicialmente de escritorio y de funcionamiento local. La primera versión busca establecer una base funcional para administrar servicios mensuales y visualizar cómo una inversión en caución se compara con los gastos.
 
-El alcance inicial trabaja exclusivamente en pesos argentinos (ARS). La conversión de monedas y el historial financiero avanzado quedan reservados para futuras versiones.
+El alcance inicial admite pesos argentinos (ARS) y dólares estadounidenses (USD) sin conversión entre ellos. La conversión de monedas y el historial financiero avanzado quedan reservados para futuras versiones.
 
 ## Metodología de trabajo
 
@@ -45,11 +45,11 @@ En caso de contradicción, los requisitos y las decisiones confirmadas prevalece
 
 ## Reglas de producto y negocio
 
-- La moneda de la primera versión es ARS. No implementar conversión ni cotizaciones en esta etapa.
-- Los servicios iniciales son mensuales; no agregar renovaciones anuales.
+- Las monedas de la primera versión son ARS y USD, con selector explícito y valor predeterminado ARS. No implementar conversión ni cotizaciones en esta etapa; los cálculos requieren monedas compatibles.
+- Los servicios iniciales son mensuales; no agregar renovaciones anuales ni prorrateo anual, registrados como funcionalidad futura.
 - Los gastos compartidos se dividen siempre en partes iguales.
 - La cantidad de personas incluye al usuario.
-- `Mi parte` se calcula como costo total dividido por cantidad de personas.
+- `Mi parte` se calcula como costo total dividido por cantidad de personas, en partes iguales y conservando la fracción exacta en dominio; la política de redondeo de presentación sigue pendiente (D-028).
 - Mostrar por separado el costo completo de servicios activos y el importe correspondiente al usuario.
 - Congelar un servicio lo oculta de la tabla activa y lo excluye de los totales. La congelación es indefinida hasta que el usuario lo reactive; no eliminar sus datos.
 - Los resultados calculados no se editan directamente. Se modifican los datos de origen y se recalculan.
