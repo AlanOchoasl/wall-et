@@ -2,11 +2,11 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::application::investment_queries::{
-    FinancialResults, InvestmentDerived, InvestmentDetails,
+    FinancialResults, InvestmentDerived, InvestmentDetails, MonthlySummary,
 };
 use crate::application::investment_repository::{InvestmentId, InvestmentRecord};
 use crate::application::investment_use_cases::{CreateInvestmentInput, UpdateInvestmentInput};
-use crate::application::service_dtos::{ExactMoneyDto, MoneyDto};
+use crate::application::service_dtos::{ExactMoneyDto, MoneyDto, ServiceTotalsDto};
 use crate::domain::calculations::{
     CalculationReason, CalculationStatus, Coverage, FinancialResult,
 };
@@ -84,6 +84,14 @@ pub struct InvestmentDerivedDto {
 pub struct InvestmentSummaryDto {
     pub record: InvestmentRecordDto,
     pub derived: InvestmentDerivedDto,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonthlySummaryDto {
+    pub month: String,
+    pub service_totals: ServiceTotalsDto,
+    pub investments: Vec<InvestmentSummaryDto>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -216,6 +224,22 @@ impl TryFrom<&InvestmentDetails> for InvestmentSummaryDto {
         Ok(Self {
             record: InvestmentRecordDto::try_from(&value.record)?,
             derived: InvestmentDerivedDto::from(&value.derived),
+        })
+    }
+}
+
+impl TryFrom<&MonthlySummary> for MonthlySummaryDto {
+    type Error = DomainError;
+
+    fn try_from(value: &MonthlySummary) -> Result<Self, Self::Error> {
+        Ok(Self {
+            month: value.month().code(),
+            service_totals: ServiceTotalsDto::try_from(value.service_totals())?,
+            investments: value
+                .investments()
+                .iter()
+                .map(InvestmentSummaryDto::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
         })
     }
 }

@@ -54,7 +54,7 @@ Convención: cada tarea indica dependencias, criterio de aceptación y requisito
 ## 6. Integración entre módulos
 
 - [x] 6.1 Asegurar que todo cambio en servicios invalide y recalcule gastos del mes y cobertura de las inversiones — Depende de: 4.4, 5.3. Aceptación: prueba de integración verifica recálculo tras alta, edición, eliminación, congelación y reactivación. Requisitos: investments (recálculo), financial-calculations (recalculo determinista).
-- [ ] 6.2 Implementar el resumen mensual que combine totales de servicios, gastos del mes y resultados de inversión — Depende de: 6.1. Aceptación: prueba devuelve un resumen consistente para un mes con servicios e inversión. Requisitos: investments (gastos del mes y cobertura), services (totales).
+- [x] 6.2 Implementar el resumen mensual que combine totales de servicios, gastos del mes y resultados de inversión — Depende de: 6.1. Aceptación: prueba devuelve un resumen consistente para un mes con servicios e inversión. Requisitos: investments (gastos del mes y cobertura), services (totales).
 - [ ] 6.3 Actualizar automáticamente la pantalla de Inversiones cuando cambian los servicios, sin acción manual del usuario — Depende de: 6.1. Aceptación: verificación manual confirma que los gastos del mes cambian al editar un servicio y volver a Inversiones. Requisitos: investments (recálculo).
 - [ ] 6.4 Verificar la consistencia entre el gasto personal de servicios y los gastos del mes cuando no existen otros gastos — Depende de: 6.2. Aceptación: prueba compara ambos valores y falla si difieren. Requisitos: investments (gastos del mes), services (totales).
 

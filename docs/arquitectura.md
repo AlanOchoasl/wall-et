@@ -46,6 +46,7 @@ Coordina los casos de uso:
 - Consultar totales de servicios.
 - Crear y modificar inversiones.
 - Consultar resultados provisionales de rendimiento y cobertura.
+- Consultar un resumen mensual de servicios e inversiones sin persistir resultados derivados.
 - Abrir una terminal externa desde la aplicación.
 
 ### Dominio
@@ -111,7 +112,7 @@ La congelación es indefinida hasta que el usuario reactive el servicio. Los dat
 - `created_at`
 - `updated_at`
 
-Los campos de entrada comienzan en cero. La TNA persistida se expresa como entero en basis points en `tna_basis_points` (D-023); la conversión desde texto decimal se realiza en dominio. Los resultados de rendimiento y cobertura se calculan y no se editan directamente. La capa de aplicación obtiene una sola vez los totales de servicios activos por moneda y los entrega al dominio, que evalúa la cobertura sin reparar el cálculo en la interfaz.
+Los campos de entrada comienzan en cero. La TNA persistida se expresa como entero en basis points en `tna_basis_points` (D-023); la conversión desde texto decimal se realiza en dominio. Los resultados de rendimiento y cobertura se calculan y no se editan directamente. La capa de aplicación obtiene una sola vez los totales de servicios activos por moneda y los entrega al dominio, que evalúa la cobertura sin reparar el cálculo en la interfaz. El resumen mensual reutiliza esa misma derivación para todas las inversiones del mes consultado; usa los servicios activos actuales y no constituye un snapshot histórico.
 
 Las fórmulas PV-01 a PV-03 están aprobadas solo para la ruta provisional; no representan la fórmula financiera definitiva, que sigue pendiente de las decisiones correspondientes. El cálculo provisional debe poder reemplazarse sin modificar la estructura de presentación ni duplicar lógica.
 

@@ -6,6 +6,7 @@ import {
   createService,
   deleteService,
   freezeService,
+  getMonthlySummary,
   getServiceTotals,
   listActiveServices,
   listFrozenServices,
@@ -17,6 +18,7 @@ import {
   type CreateServiceInputDto,
   type CoverageOutcomeDto,
   type InvestmentSummaryDto,
+  type MonthlySummaryDto,
   type ServiceRecordDto,
   type ServiceTotalsDto,
   type UpdateInvestmentInputDto,
@@ -298,6 +300,25 @@ describe("inversiones API", () => {
     taxes: "65,00",
   };
 
+  const serviceTotals: ServiceTotalsDto = {
+    ars: {
+      totalCost: { minorUnits: "10000", currencyCode: "ARS" },
+      userShare: {
+        numeratorMinor: "10000",
+        denominator: "3",
+        currencyCode: "ARS",
+      },
+    },
+    usd: {
+      totalCost: { minorUnits: "0", currencyCode: "USD" },
+      userShare: {
+        numeratorMinor: "0",
+        denominator: "1",
+        currencyCode: "USD",
+      },
+    },
+  };
+
   beforeEach(() => {
     mockedInvoke.mockReset();
   });
@@ -332,6 +353,20 @@ describe("inversiones API", () => {
       investmentRecord,
     ]);
     expect(mockedInvoke).toHaveBeenCalledWith("list_investments_by_month", {
+      month: "2026-03",
+    });
+  });
+
+  it("getMonthlySummary invoca get_monthly_summary y conserva el contrato", async () => {
+    const summary: MonthlySummaryDto = {
+      month: "2026-03",
+      serviceTotals,
+      investments: [investmentRecord],
+    };
+    mockedInvoke.mockResolvedValue(summary);
+
+    await expect(getMonthlySummary("2026-03")).resolves.toEqual(summary);
+    expect(mockedInvoke).toHaveBeenCalledWith("get_monthly_summary", {
       month: "2026-03",
     });
   });

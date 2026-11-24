@@ -115,6 +115,12 @@ export type InvestmentSummaryDto = {
   derived: InvestmentDerivedDto;
 };
 
+export type MonthlySummaryDto = {
+  month: string;
+  serviceTotals: ServiceTotalsDto;
+  investments: InvestmentSummaryDto[];
+};
+
 export type CreateInvestmentInputDto = {
   month: string;
   currencyCode: CurrencyCode;
@@ -208,4 +214,8 @@ export function listInvestmentsByMonth(
   return invokeCommand<InvestmentSummaryDto[]>("list_investments_by_month", {
     month,
   });
+}
+
+export function getMonthlySummary(month: string): Promise<MonthlySummaryDto> {
+  return invokeCommand<MonthlySummaryDto>("get_monthly_summary", { month });
 }

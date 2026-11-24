@@ -167,6 +167,41 @@ El sistema SHALL recalcular los resultados derivados de una inversión cuando ca
 - **WHEN** el usuario modifica el costo total de un servicio activo
 - **THEN** los gastos del mes y la cobertura de las inversiones se recalculan con el nuevo valor
 
+### Requirement: Consultar el resumen mensual
+
+El sistema SHALL permitir consultar un mes con identificador `YYYY-MM` y devolver una respuesta de solo lectura que contenga el mes validado, los totales de servicios activos separados por moneda, el gasto personal separado por moneda y todas las inversiones registradas en ese mes con sus datos originales y resultados derivados. Los totales de servicios MUST obtenerse una sola vez por consulta y MUST reutilizarse para derivar cada inversión usando su propia moneda. Las inversiones MUST devolverse individualmente, sin agregarse ni imponerse unicidad por mes. El sistema MUST NOT convertir ni sumar importes de monedas distintas, MUST NOT redondear fracciones exactas y MUST NOT persistir resultados derivados.
+El resumen MUST usar los servicios activos actuales y MUST NOT presentarse como una fotografía histórica del mes consultado. Los estados y motivos de los cálculos MUST conservarse sin que la interfaz decida su validez.
+
+#### Scenario: Resumen con servicios e inversión
+
+- **WHEN** se consulta un mes con servicios activos en ARS y USD y una inversión en ARS
+- **THEN** el sistema devuelve los totales y gastos personales separados por moneda y la inversión con gastos, rendimientos, cobertura y estados derivados con los servicios activos actuales
+
+#### Scenario: Múltiples inversiones en el mismo mes
+
+- **WHEN** existen dos inversiones registradas en el mes consultado
+- **THEN** el sistema devuelve ambas individualmente, sin agregarlas ni rechazarlas por duplicado
+
+#### Scenario: Resumen sin inversiones
+
+- **WHEN** se consulta un mes sin inversiones registradas
+- **THEN** el sistema devuelve una colección vacía de inversiones y los totales de servicios activos vigentes
+
+#### Scenario: Resumen sin servicios activos
+
+- **WHEN** se consulta un mes sin servicios activos
+- **THEN** el sistema devuelve totales y gastos personales en cero por moneda y calcula las inversiones según las reglas vigentes para gastos en cero
+
+#### Scenario: Mes inválido en el resumen
+
+- **WHEN** se consulta el resumen con un mes que no respeta `YYYY-MM`
+- **THEN** el sistema rechaza la consulta e informa el campo `month`
+
+#### Scenario: Resultados no definitivos en el resumen
+
+- **WHEN** el resumen incluye inversiones mientras la fórmula definitiva sigue pendiente
+- **THEN** las rutas definitivas se devuelven como no disponibles y PV-01, PV-02 y PV-03 continúan identificadas como provisionales
+
 ### Requirement: Validar los datos de una inversión
 
 El sistema SHALL validar los datos antes de persistir cualquier alta o edición. El mes MUST ser obligatorio y respetar el formato año-mes. La moneda MUST ser ARS o USD. El capital y los impuestos MUST ser importes no negativos de hasta dos decimales en la moneda seleccionada. La TNA MUST ingresarse como texto decimal no negativo de hasta dos decimales y convertirse en basis points según D-023. El plazo MUST ser un entero no negativo expresado en días.

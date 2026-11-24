@@ -42,7 +42,8 @@ pub fn run() {
             commands::services::get_service_totals,
             commands::investments::create_investment,
             commands::investments::update_investment,
-            commands::investments::list_investments_by_month
+            commands::investments::list_investments_by_month,
+            commands::investments::get_monthly_summary
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

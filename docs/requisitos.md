@@ -123,6 +123,21 @@ La cobertura de la primera versión se muestra con PV-03 mientras la ruta defini
 - En esta primera versión, `Gastos del mes` considera los servicios administrados por el módulo Servicios. La incorporación de otras categorías de gastos podrá evaluarse posteriormente.
 - La inversión y los gastos comparados deben compartir moneda; no se convierten importes.
 
+#### Resumen mensual
+
+El sistema debe permitir consultar un mes mediante su identificador `YYYY-MM` y devolver, en una sola respuesta de solo lectura:
+
+- el mes solicitado, validado con las reglas existentes;
+- los totales de servicios activos y el gasto personal, separados por ARS y USD, conservando las fracciones exactas según D-028 y excluyendo servicios congelados;
+- todas las inversiones registradas en ese mes, individualmente, sin agregarlas ni imponer unicidad;
+- para cada inversión, sus datos originales, moneda, capital, TNA, plazo, impuestos, gastos del mes, rendimiento bruto, rendimiento neto, cobertura y los estados y motivos de cada cálculo.
+
+Los totales de servicios se obtienen una sola vez por consulta y se reutilizan para derivar todas las inversiones. No se suman importes de monedas distintas, no se realizan conversiones, no se redondean fracciones exactas y no se persisten resultados derivados.
+
+El resumen utiliza los servicios activos actuales. No constituye una fotografía histórica de los servicios que estaban activos durante el mes consultado; esta limitación debe entenderse así cada vez que se consulte o interprete el resumen. No se implementa historial financiero ni almacenamiento de instantáneas.
+
+La consulta debe funcionar incluso cuando no existan inversiones o servicios activos. La ruta definitiva de los cálculos permanece no disponible mientras no exista una fórmula aprobada, y PV-01, PV-02 y PV-03 continúan identificándose como provisionales.
+
 ### RF-04 — Apertura de OpenCode
 
 La aplicación incluirá un botón para abrir una terminal externa ubicada en el directorio del proyecto.

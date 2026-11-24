@@ -14,6 +14,7 @@ use crate::domain::calculations::{Coverage, FinancialCalculator, FinancialResult
 use crate::domain::error::DomainError;
 use crate::domain::investment::{Investment, Month};
 use crate::domain::money::ExactMoney;
+use crate::domain::service_totals::ServiceTotals;
 
 #[derive(Debug, Clone)]
 pub struct FinancialResults<T> {
@@ -33,6 +34,27 @@ pub struct InvestmentDerived {
 pub struct InvestmentDetails {
     pub record: InvestmentRecord,
     pub derived: InvestmentDerived,
+}
+
+#[derive(Debug, Clone)]
+pub struct MonthlySummary {
+    month: Month,
+    service_totals: ServiceTotals,
+    investments: Vec<InvestmentDetails>,
+}
+
+impl MonthlySummary {
+    pub fn month(&self) -> Month {
+        self.month
+    }
+
+    pub fn service_totals(&self) -> &ServiceTotals {
+        &self.service_totals
+    }
+
+    pub fn investments(&self) -> &[InvestmentDetails] {
+        &self.investments
+    }
 }
 
 pub fn create_investment_details<S, I>(
@@ -90,6 +112,31 @@ where
         .collect()
 }
 
+pub fn get_monthly_summary<S, I>(
+    connection: &Connection,
+    service_repository: &S,
+    investment_repository: &I,
+    month: &str,
+) -> Result<MonthlySummary, DomainError>
+where
+    S: ServiceRepository + ?Sized,
+    I: InvestmentRepository + ?Sized,
+{
+    let month = Month::parse(month)?;
+    let service_totals = get_service_totals(connection, service_repository)?;
+    let records = investment_repository.list_by_month(connection, month)?;
+    let investments = records
+        .iter()
+        .map(|record| details_from_record_with_totals(record, &service_totals))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(MonthlySummary {
+        month,
+        service_totals,
+        investments,
+    })
+}
+
 fn details_from_record<S>(
     connection: &Connection,
     service_repository: &S,
@@ -98,7 +145,15 @@ fn details_from_record<S>(
 where
     S: ServiceRepository + ?Sized,
 {
-    let derived = derive_details(connection, service_repository, record.investment())?;
+    let service_totals = get_service_totals(connection, service_repository)?;
+    details_from_record_with_totals(record, &service_totals)
+}
+
+fn details_from_record_with_totals(
+    record: &InvestmentRecord,
+    service_totals: &ServiceTotals,
+) -> Result<InvestmentDetails, DomainError> {
+    let derived = derive_details_with_totals(record.investment(), service_totals)?;
 
     Ok(InvestmentDetails {
         record: record.clone(),
@@ -115,6 +170,13 @@ where
     S: ServiceRepository + ?Sized,
 {
     let service_totals = get_service_totals(connection, service_repository)?;
+    derive_details_with_totals(investment, &service_totals)
+}
+
+fn derive_details_with_totals(
+    investment: &Investment,
+    service_totals: &ServiceTotals,
+) -> Result<InvestmentDerived, DomainError> {
     let monthly_expenses = service_totals.user_share(investment.currency()).clone();
 
     let gross_yield = FinancialResults {
@@ -129,12 +191,12 @@ where
         definitive: DefinitiveCalculator.coverage(
             investment.currency(),
             &net_yield.definitive,
-            &service_totals,
+            service_totals,
         )?,
         provisional: ProvisionalCalculator.coverage(
             investment.currency(),
             &net_yield.provisional,
-            &service_totals,
+            service_totals,
         )?,
     };
 

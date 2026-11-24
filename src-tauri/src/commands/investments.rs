@@ -4,7 +4,8 @@ use tauri::State;
 use crate::AppState;
 use crate::application::error::AppError;
 use crate::application::investment_dtos::{
-    CreateInvestmentInputDto, InvestmentSummaryDto, UpdateInvestmentInputDto, parse_investment_id,
+    CreateInvestmentInputDto, InvestmentSummaryDto, MonthlySummaryDto, UpdateInvestmentInputDto,
+    parse_investment_id,
 };
 use crate::application::investment_queries;
 use crate::application::investment_repository::{InvestmentId, InvestmentRepository};
@@ -98,6 +99,27 @@ where
         .map_err(map_investment_error)
 }
 
+fn get_monthly_summary_with<S, I>(
+    connection: &Connection,
+    service_repository: &S,
+    investment_repository: &I,
+    month: String,
+) -> Result<MonthlySummaryDto, AppError>
+where
+    S: ServiceRepository + ?Sized,
+    I: InvestmentRepository + ?Sized,
+{
+    let summary = investment_queries::get_monthly_summary(
+        connection,
+        service_repository,
+        investment_repository,
+        month.as_str(),
+    )
+    .map_err(map_investment_error)?;
+
+    MonthlySummaryDto::try_from(&summary).map_err(map_investment_error)
+}
+
 #[tauri::command]
 pub fn create_investment(
     state: State<'_, AppState>,
@@ -143,12 +165,27 @@ pub fn list_investments_by_month(
     )
 }
 
+#[tauri::command]
+pub fn get_monthly_summary(
+    state: State<'_, AppState>,
+    month: String,
+) -> Result<MonthlySummaryDto, AppError> {
+    let connection = database::open(&state.database_path)?;
+    get_monthly_summary_with(
+        &connection,
+        &SERVICE_REPOSITORY,
+        &INVESTMENT_REPOSITORY,
+        month,
+    )
+}
+
 fn parse_id(value: &str) -> Result<InvestmentId, AppError> {
     parse_investment_id(value).map_err(map_investment_error)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
     use std::path::{Path, PathBuf};
 
     use tempfile::TempDir;
@@ -266,6 +303,60 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct CountingServiceRepository {
+        list_active_calls: Cell<usize>,
+    }
+
+    impl ServiceRepository for CountingServiceRepository {
+        fn insert(
+            &self,
+            connection: &Connection,
+            service: &Service,
+        ) -> Result<ServiceRecord, DomainError> {
+            SqliteServiceRepository.insert(connection, service)
+        }
+
+        fn get(
+            &self,
+            connection: &Connection,
+            id: ServiceId,
+        ) -> Result<Option<ServiceRecord>, DomainError> {
+            SqliteServiceRepository.get(connection, id)
+        }
+
+        fn update(
+            &self,
+            connection: &Connection,
+            id: ServiceId,
+            service: &Service,
+        ) -> Result<ServiceRecord, DomainError> {
+            SqliteServiceRepository.update(connection, id, service)
+        }
+
+        fn delete(&self, connection: &Connection, id: ServiceId) -> Result<(), DomainError> {
+            SqliteServiceRepository.delete(connection, id)
+        }
+
+        fn set_status(
+            &self,
+            connection: &Connection,
+            id: ServiceId,
+            status: ServiceStatus,
+        ) -> Result<ServiceRecord, DomainError> {
+            SqliteServiceRepository.set_status(connection, id, status)
+        }
+
+        fn list_active(&self, connection: &Connection) -> Result<Vec<ServiceRecord>, DomainError> {
+            self.list_active_calls.set(self.list_active_calls.get() + 1);
+            SqliteServiceRepository.list_active(connection)
+        }
+
+        fn list_frozen(&self, connection: &Connection) -> Result<Vec<ServiceRecord>, DomainError> {
+            SqliteServiceRepository.list_frozen(connection)
+        }
+    }
+
     fn database_path(directory: &TempDir) -> PathBuf {
         database::resolve_path(directory.path())
     }
@@ -336,6 +427,16 @@ mod tests {
     fn list_at(path: &Path, month: &str) -> Result<Vec<InvestmentSummaryDto>, AppError> {
         let connection = database::open(path)?;
         list_investments_by_month_with(
+            &connection,
+            &SERVICE_REPOSITORY,
+            &INVESTMENT_REPOSITORY,
+            month.to_owned(),
+        )
+    }
+
+    fn summary_at(path: &Path, month: &str) -> Result<MonthlySummaryDto, AppError> {
+        let connection = database::open(path)?;
+        get_monthly_summary_with(
             &connection,
             &SERVICE_REPOSITORY,
             &INVESTMENT_REPOSITORY,
@@ -737,6 +838,20 @@ mod tests {
                 "2026-03".to_owned(),
             )
             .unwrap_err(),
+            get_monthly_summary_with(
+                &connection,
+                &SERVICE_REPOSITORY,
+                &FailingInvestmentRepository,
+                "2026-03".to_owned(),
+            )
+            .unwrap_err(),
+            get_monthly_summary_with(
+                &connection,
+                &FailingServiceRepository,
+                &INVESTMENT_REPOSITORY,
+                "2026-03".to_owned(),
+            )
+            .unwrap_err(),
         ];
 
         for error in errors {
@@ -935,6 +1050,199 @@ mod tests {
         assert_expenses(&summary, "100000", "3");
         assert_deficit(&summary, "10000", "3");
 
+        assert_no_derived_persistence(&path);
+    }
+
+    #[test]
+    fn resumen_mensual_combina_totales_y_todas_las_inversiones_del_mes() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = database_path(&directory);
+        create_service_at(&path, "Principal", Currency::Ars, "100,00", 3);
+        create_service_at(&path, "Externa", Currency::Usd, "20,00", 2);
+        let frozen = create_service_at(&path, "Congelada", Currency::Ars, "999,00", 1);
+        freeze_service_at(&path, frozen.id());
+
+        let ars_investment = create_at(
+            &path,
+            create_input("2026-03", "ARS", "365,00", "100", "365", "65,00"),
+        )
+        .unwrap();
+        let usd_investment = create_at(
+            &path,
+            create_input("2026-03", "USD", "365,00", "100", "365", "65,00"),
+        )
+        .unwrap();
+        create_at(
+            &path,
+            create_input("2026-04", "ARS", "100,00", "25", "30", "0,00"),
+        )
+        .unwrap();
+
+        let summary = summary_at(&path, "2026-03").unwrap();
+        let serialized = serde_json::to_value(&summary).unwrap();
+
+        assert_eq!(serialized["month"], serde_json::json!("2026-03"));
+        assert!(serialized["serviceTotals"].get("ars").is_some());
+        assert_eq!(serialized["investments"].as_array().unwrap().len(), 2);
+        assert_eq!(summary.month, "2026-03");
+        assert_eq!(summary.service_totals.ars.total_cost.minor_units, "10000");
+        assert_eq!(
+            summary.service_totals.ars.user_share.numerator_minor,
+            "10000"
+        );
+        assert_eq!(summary.service_totals.ars.user_share.denominator, "3");
+        assert_eq!(summary.service_totals.usd.total_cost.minor_units, "2000");
+        assert_eq!(
+            summary.service_totals.usd.user_share.numerator_minor,
+            "1000"
+        );
+        assert_eq!(summary.service_totals.usd.user_share.denominator, "1");
+
+        assert_eq!(summary.investments.len(), 2);
+        assert_eq!(
+            summary
+                .investments
+                .iter()
+                .map(|investment| investment.record.id.clone())
+                .collect::<Vec<_>>(),
+            vec![ars_investment.record.id, usd_investment.record.id]
+        );
+        assert!(
+            summary
+                .investments
+                .iter()
+                .all(|investment| investment.record.month == "2026-03")
+        );
+
+        let ars = summary
+            .investments
+            .iter()
+            .find(|investment| investment.record.currency_code == "ARS")
+            .unwrap();
+        assert_eq!(ars.derived.monthly_expenses.numerator_minor, "10000");
+        assert_eq!(ars.derived.monthly_expenses.denominator, "3");
+        assert_eq!(ars.derived.monthly_expenses.currency_code, "ARS");
+
+        let usd = summary
+            .investments
+            .iter()
+            .find(|investment| investment.record.currency_code == "USD")
+            .unwrap();
+        assert_eq!(usd.derived.monthly_expenses.numerator_minor, "1000");
+        assert_eq!(usd.derived.monthly_expenses.denominator, "1");
+        assert_eq!(usd.derived.monthly_expenses.currency_code, "USD");
+
+        for investment in &summary.investments {
+            assert_eq!(
+                investment.derived.gross_yield.definitive.status,
+                CalculationStatusDto::NoDisponible
+            );
+            assert_eq!(
+                investment.derived.gross_yield.provisional.status,
+                CalculationStatusDto::Provisional
+            );
+            assert_eq!(
+                investment.derived.gross_yield.provisional.reason,
+                Some(CalculationReasonDto::ApprovedDemoPv01)
+            );
+            assert_eq!(
+                investment.derived.net_yield.definitive.status,
+                CalculationStatusDto::NoDisponible
+            );
+            assert_eq!(
+                investment.derived.net_yield.provisional.status,
+                CalculationStatusDto::Provisional
+            );
+            assert_eq!(
+                investment.derived.net_yield.provisional.reason,
+                Some(CalculationReasonDto::ApprovedDemoPv02)
+            );
+            assert_eq!(
+                investment.derived.coverage.definitive.status,
+                CalculationStatusDto::NoDisponible
+            );
+            assert_eq!(
+                investment.derived.coverage.provisional.status,
+                CalculationStatusDto::Provisional
+            );
+            assert_eq!(
+                investment.derived.coverage.provisional.reason,
+                Some(CalculationReasonDto::ApprovedDemoPv03)
+            );
+            assert!(investment.derived.coverage.provisional.value.is_some());
+        }
+    }
+
+    #[test]
+    fn resumen_obtiene_totales_de_servicios_una_sola_vez() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = database_path(&directory);
+        create_service_at(&path, "Principal", Currency::Ars, "100,00", 1);
+        create_at(
+            &path,
+            create_input("2026-03", "ARS", "365,00", "100", "365", "65,00"),
+        )
+        .unwrap();
+        create_at(
+            &path,
+            create_input("2026-03", "ARS", "730,00", "100", "365", "65,00"),
+        )
+        .unwrap();
+
+        let connection = database::open(&path).unwrap();
+        let counting = CountingServiceRepository::default();
+        let summary = get_monthly_summary_with(
+            &connection,
+            &counting,
+            &INVESTMENT_REPOSITORY,
+            "2026-03".to_owned(),
+        )
+        .unwrap();
+
+        assert_eq!(summary.investments.len(), 2);
+        assert_eq!(counting.list_active_calls.get(), 1);
+    }
+
+    #[test]
+    fn resumen_funciona_sin_servicios_ni_inversiones() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = database_path(&directory);
+
+        let summary = summary_at(&path, "2026-03").unwrap();
+
+        assert_eq!(summary.month, "2026-03");
+        assert!(summary.investments.is_empty());
+        assert_eq!(summary.service_totals.ars.total_cost.minor_units, "0");
+        assert_eq!(summary.service_totals.ars.user_share.numerator_minor, "0");
+        assert_eq!(summary.service_totals.usd.total_cost.minor_units, "0");
+        assert_eq!(summary.service_totals.usd.user_share.numerator_minor, "0");
+    }
+
+    #[test]
+    fn mes_invalido_en_resumen_devuelve_campo_month() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = database_path(&directory);
+
+        let error = summary_at(&path, "2026/03").unwrap_err();
+
+        assert_eq!(error.code, "validation");
+        assert_eq!(error.field.as_deref(), Some("month"));
+    }
+
+    #[test]
+    fn resumen_no_persiste_valores_derivados() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = database_path(&directory);
+        create_service_at(&path, "Principal", Currency::Ars, "100,00", 3);
+        create_at(
+            &path,
+            create_input("2026-03", "ARS", "365,00", "100", "365", "65,00"),
+        )
+        .unwrap();
+
+        let summary = summary_at(&path, "2026-03").unwrap();
+
+        assert_eq!(summary.investments.len(), 1);
         assert_no_derived_persistence(&path);
     }
 }
